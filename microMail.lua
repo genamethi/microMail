@@ -151,7 +151,7 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
 	nInd = tonumber( nInd );
 	if sRec and nInd then
-		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] then
+		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] and ( ( tIndex[ sRec ][ nInd ][ 3 ] == tUser.sNick and tIndex[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
 			table.remove( tIndex[ sRec ], nInd );
 			return ( tCommandArrivals.mailstatus:Action( tUser, sMsg ) ), "Success", true, tMail[1];
 		end
