@@ -35,8 +35,6 @@ sFromBot = "<" .. tMail[1] .. "> ";
 
 function OnStartup( )
 	Core.RegBot( unpack( tMail ) );
-	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
-	sim.imode( Core.GetUser( "Namebrand" ) ); --Enabling debug output to this user.
 	local f = assert( loadfile( Core.GetPtokaXPath( ) .. "scripts/data/Serialize.lua" ) );
 	if f then
 		f( );
@@ -49,6 +47,7 @@ function OnStartup( )
 	else
 		tIndex = { };
 	end
+	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
 end
 	
 function UserConnected( tUser )
@@ -57,7 +56,7 @@ function UserConnected( tUser )
 	end
 end
 
-OpConnected = UserConnected;
+OpConnected, RegConnected = UserConnected, UserConnected;
 
 function ChatArrival( tUser, sData )
 	local nInitIndex = #tUser.sNick + 4;
@@ -112,8 +111,7 @@ end
 function IndexMail( ... ) 
 end
 
-tCommandArrivals = {
-	wmail = {
+tCommandArrivals = {	wmail = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
 	},
@@ -138,6 +136,7 @@ tCommandArrivals = {
 function tCommandArrivals.mhelp:Action( tUser )
 	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. " **-*-**\n\n";
 	for name, obj in pairs( tCommandArrivals ) do
+	sim.print( name, obj )
 		if obj.Permissions[ tUser.iProfile ] then
 			sRet = sRet .. name .. obj.sHelp;
 		end
@@ -145,7 +144,7 @@ function tCommandArrivals.mhelp:Action( tUser )
 	return true, sRet, true, tMail[1];
 end
 
-function tCommandArrivals.dmail( tUser, sMsg )
+function tCommandArrivals.dmail:Action( tUser, sMsg )
 	--return true, "This command has not been implemented yet";
 	---[[ parse message, get username, get indice. use table.remove to remove. Send updated mailstatus to tUser.
 	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
@@ -176,9 +175,9 @@ tIndex = {
 	},
 }
 
-Problem is we want sent messages to point towards user's recieved messages for the sake of memory savings. But once serialized and reloaded the table will contain two unique entries for the same message (sent and 
-received) I need to find a way to prevent it from serializing the references to the received messages, and just let it dynamically rebuild the received table with the unread entries.... perhaps a special version of serialize that
-tests the read condition while traversing the received table?
+Problem is we want sent messages to point towards user's recieved messages for the sake of memory savings. But once serialized and reloaded the table will contain two unique entries for the same
+message (sent and received) I need to find a way to prevent it from serializing the references to the received messages, and just let it dynamically rebuild the received table with the unread
+ entries.... perhaps a special version of serialize that tests the read condition while traversing the received table?
 
 
 ]]
@@ -207,7 +206,7 @@ function tCommandArrivals.wmail:Action( tUser, sMsg )
 			--Check if tUser has a mailbox
 			if tIndex[ sRec ] then
 				tIndex[ sRec ][ #tIndex[ sRec ] + 1 ] = { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false };
-				tIndex[ sRec ].nCounter = tIndex[ sRec ].nCounter + 1;
+				tIndex[ sRec ].nCounter = tIndex[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
 				return true, "You sent the following message to " .. sRec .. ": " .. sMail;
 			else
 				tIndex[ sRec ] = { { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false }, nCounter = 1 };
