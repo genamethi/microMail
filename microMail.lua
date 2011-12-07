@@ -45,6 +45,7 @@ function OnStartup( )
 		fMail( );
 		fMail = nil;
 	else
+		os.execute( "mkdir " .. sPath );
 		tIndex = { };
 	end
 	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
