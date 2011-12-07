@@ -149,6 +149,7 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	--return true, "This command has not been implemented yet";
 	---[[ parse message, get username, get indice. use table.remove to remove. Send updated mailstatus to tUser.
 	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
+	nInd = tonumber( nInd );
 	if sRec and nInd then
 		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] then
 			table.remove( tIndex[ sRec ], nInd );
