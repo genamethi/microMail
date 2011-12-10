@@ -33,13 +33,7 @@ sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
 sFromBot = "<" .. tMail[1] .. "> ";
 
-function OnStartup( )
-	Core.RegBot( unpack( tMail ) );
-	local f = assert( loadfile( Core.GetPtokaXPath( ) .. "scripts/data/Serialize.lua" ) );
-	if f then
-		f( );
-		f = nil;
-	end
+do
 	local fMail = loadfile( sPath .. tMail.tConfig.sMailFile );
 	if fMail then
 		fMail( );
@@ -47,7 +41,33 @@ function OnStartup( )
 	else
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
+		setmetatable( tIndex, { __index = function( t, k )
+				if rcvmode then
+					return _tIndex[ k ]
+				else
+					local ret = {};
+					for i,v in pairs( _tIndex[ ActualUser ].sent ) do
+						ret[ #ret + 1 ] = _tIndex[ k ][ v ];
+					end
+					return ret;
+				end
+			end,
+			__newindex = function( t, k, v )
+				_tIndex[k] = v;
+				_tIndex[ ActualUser ].sent[ v[2] ] = #t;
+			end,	
+		}; )
 	end
+end
+
+function OnStartup( )
+	Core.RegBot( unpack( tMail ) );
+	local f = assert( loadfile( Core.GetPtokaXPath( ) .. "scripts/data/Serialize.lua" ) );
+	if f then
+		f( );
+		f = nil;
+	end
+
 	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
 end
 	
@@ -146,43 +166,20 @@ function tCommandArrivals.mhelp:Action( tUser )
 end
 
 function tCommandArrivals.dmail:Action( tUser, sMsg )
-	--return true, "This command has not been implemented yet";
-	---[[ parse message, get username, get indice. use table.remove to remove. Send updated mailstatus to tUser.
 	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
 	nInd = tonumber( nInd );
 	if sRec and nInd then
 		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] and ( ( tIndex[ sRec ][ nInd ][ 3 ] == tUser.sNick and tIndex[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
 			table.remove( tIndex[ sRec ], nInd );
-			return ( tCommandArrivals.mailstatus:Action( tUser, sMsg ) ), "Success", true, tMail[1];
+			return ( tCommandArrivals.mailstatus:Action( tUser, sMsg ) ), "Success.", true, tMail[1];
+		else
+			return true, "You cannot delete this message.\124", true, tMail[1];
 		end
 	else
 		return true, "Syntax error", true, tMail[1];
 	end
 	--]]
 end
-	
-
---[[
-
-tIndex = {
-
-	amenay = {
-		sent = { 
-			[1] = { time, to, from, subject, msg, read},
-			
-		},
-		recieved = {
-			[1] = { time, to, from, subject, msg, read },
-		},	
-	},
-}
-
-Problem is we want sent messages to point towards user's recieved messages for the sake of memory savings. But once serialized and reloaded the table will contain two unique entries for the same
-message (sent and received) I need to find a way to prevent it from serializing the references to the received messages, and just let it dynamically rebuild the received table with the unread
- entries.... perhaps a special version of serialize that tests the read condition while traversing the received table?
-
-
-]]
 
 function tCommandArrivals.mailstatus:Action( tUser, sMsg )
 	local sRec = sMsg:match( "^(%S+)" )
@@ -215,7 +212,7 @@ function tCommandArrivals.wmail:Action( tUser, sMsg )
 				return true, "You sent the following message to " .. sRec .. ": "  .. sMail;
 			end
 		else
-			return true, "Syntax error, try !rmail recipient message here\124", false, tMail[1];
+			return true, "Syntax error, try !wmail recipient message here\124", false, tMail[1];
 		end
 	end
 end
@@ -224,7 +221,7 @@ function tCommandArrivals.rmail:Action( tUser )
 	if tIndex[ tUser.sNick ] then
 		local sMsg = "\n\n";
 		for i, v in ipairs( tIndex[ tUser.sNick ] ) do
-			sMsg = sMsg .. "[" .. os.date( "%x - %X", v[1] ) .. "] <" .. v[3] .. "> " .. v[5] .. "\n";
+			sMsg = sMsg .. "[" .. os.date( "%x - %X", v[1] ) .. "] " .. i .. "# <" .. v[3] .. "> " .. v[5] .. "\n";
 			tIndex[ tUser.sNick ].nCounter = v[6] and tIndex[ tUser.sNick ].nCounter or tIndex[ tUser.sNick ].nCounter - 1;
 			v[6] = v[6] or true;
 		end
@@ -233,3 +230,27 @@ function tCommandArrivals.rmail:Action( tUser )
 		return true, "You have no messages at this time", true, tMail[1];
 	end
 end
+
+
+--[[
+
+tIndex = {
+
+	amenay = {
+		recieved = {
+			[1] = { time, to, from, subject, msg, read },
+			sent = { 
+				nick = { 1...n }
+			}
+		},	
+	},
+}
+
+Problem is we want sent messages to point towards user's recieved messages for the sake of memory savings. But once serialized and reloaded the table will contain two unique entries for the same
+message (sent and received) I need to find a way to prevent it from serializing the references to the received messages, and just let it dynamically rebuild the received table with the unread
+ entries.... perhaps a special version of serialize that tests the read condition while traversing the received table?
+
+Or maybe we just make a proxy table with a method to tie sent and received together.
+
+Or maybe we use a light db implementation.
+]]
