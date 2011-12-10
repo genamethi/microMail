@@ -9,10 +9,7 @@
 		Reference,
 		Threads, (in the conversational sense)
 		CC & BCC
-		
-		Short term todo:
-			
-			Command list that dynamically generates a listing of available commands based off profile permissions.
+
 ]]
 require "sim"
 tMail = {
@@ -42,7 +39,7 @@ do
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
 		setmetatable( tIndex, { __index = function( t, k )
-				if rcvmode then
+				if rcv then
 					return _tIndex[ k ]
 				else
 					local ret = {};
@@ -53,8 +50,13 @@ do
 				end
 			end,
 			__newindex = function( t, k, v )
-				_tIndex[k] = v;
-				_tIndex[ ActualUser ].sent[ v[2] ] = #t;
+				if ins then
+					_tIndex[k] = v;
+					_tIndex[ ActualUser ].sent[ v[2] ][ #t ] = true;
+				else
+					_tIndex[k] = nil;
+					_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
+				end
 			end,	
 		}; )
 	end
@@ -97,7 +99,7 @@ function ChatArrival( tUser, sData )
 end			
 
 function OnExit( )
-	SaveToFile( sPath .. tMail.tConfig.sMailFile, tIndex, "tIndex", "w+" )
+	SaveToFile( sPath .. tMail.tConfig.sMailFile, _tIndex, "_tIndex", "w+" )
 	sim.hook_OnExit()
 end
 
@@ -170,7 +172,7 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	nInd = tonumber( nInd );
 	if sRec and nInd then
 		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] and ( ( tIndex[ sRec ][ nInd ][ 3 ] == tUser.sNick and tIndex[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
-			table.remove( tIndex[ sRec ], nInd );
+			tremove( tIndex[ sRec ], nInd );
 			return ( tCommandArrivals.mailstatus:Action( tUser, sMsg ) ), "Success.", true, tMail[1];
 		else
 			return true, "You cannot delete this message.\124", true, tMail[1];
@@ -231,6 +233,12 @@ function tCommandArrivals.rmail:Action( tUser )
 	end
 end
 
+function tremove( t, k )
+	t[k] = nil;
+	for i = k, #t, 1 do
+		t[i] = t[i+1];
+	end
+end
 
 --[[
 
