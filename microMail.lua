@@ -38,6 +38,7 @@ do
 	else
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
+		local _tIndex = tIndex;
 		setmetatable( tIndex, { __index = function( t, k )
 				if rcv then
 					return _tIndex[ k ]
@@ -57,8 +58,8 @@ do
 					_tIndex[k] = nil;
 					_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
 				end
-			end,	
-		}; )
+			end, } 
+		)
 	end
 end
 
@@ -69,7 +70,6 @@ function OnStartup( )
 		f( );
 		f = nil;
 	end
-
 	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
 end
 	
@@ -130,6 +130,13 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	end
 end
 
+function tremove( t, k )
+	k = k or #t;
+	t[k] = nil;
+	for i = k, #t, 1 do
+		t[i] = t[i+1];
+	end
+end
 
 function IndexMail( ... ) 
 end
@@ -233,12 +240,7 @@ function tCommandArrivals.rmail:Action( tUser )
 	end
 end
 
-function tremove( t, k )
-	t[k] = nil;
-	for i = k, #t, 1 do
-		t[i] = t[i+1];
-	end
-end
+
 
 --[[
 
