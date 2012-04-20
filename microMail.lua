@@ -27,7 +27,7 @@ tMail = {
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
---[[ Less contatenation on the fly if you have the botname ready. ]]
+--[[ Less concatenation on the fly if you have the botname ready. ]]
 sFromBot = "<" .. tMail[1] .. "> ";
 --[[ See next block for an explanation of these three variables ]]
 ActualUser, rcv, ins = "", true, true;
@@ -42,46 +42,22 @@ do
 		--[[ The things we do when tIndex does not exist. ]]
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
-		_tIndex = { };
 	end
-	--[[ This shit makes my head spin, basically it is inteded as way to control accesss to the table in a way that provides us with snycronized send and received mailboxes.
-		I don't think this implementation will stick because before creating it I still was not 100% sure how I wanted things to behave.]]
-	setmetatable( tIndex, { 
-		__index = function( t, k )
-			if rcv then
-				return _tIndex[ k ]
-			else
-				local ret = {};
-				for i,v in pairs( _tIndex[ k ].sent ) do
-					ret[ #ret + 1 ] = _tIndex[ k ][ v ];
-				end
-				return ret;
-			end
-		end,
-		__newindex = function( t, k, v )
-			if ins then
-				_tIndex[k] = v;
-				_tIndex[k].sent[ v[2] ][ #t ] = true;
-			else
-				_tIndex[k] = nil;
-				_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
-			end
-		end, } 
-	)
 end
 
 function OnStartup( )
+	--[[ Register bot, load serialize function, and register interactive Lua mode ]]
 	Core.RegBot( unpack( tMail ) );
 	local f = assert( loadfile( Core.GetPtokaXPath( ) .. "scripts/data/Serialize.lua" ) );
 	if f then
 		f( );
 		f = nil;
 	end
-
 	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "generic" } );
 end
 	
 function UserConnected( tUser )
+	--[[ New mail? Notify user. ]]
 	if tIndex and tIndex[ tUser.sNick ] and tIndex[ tUser.sNick ].nCounter > 0 then
 		Core.SendPmToUser( tUser, tMail[1], "You have " .. tIndex[ tUser.sNick ].nCounter .. " new messages in your inbox. Type !rmail to read.\124" );
 	end
@@ -159,6 +135,8 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	end
 end
 
+--[[ Gracefully removes a single entry from an array then moves everything up.
+]]
 function tremove( t, k )
 	local tlen = #t;
 	t[k] = nil;
@@ -268,27 +246,3 @@ function tCommandArrivals.rmail:Action( tUser )
 		return true, "You have no messages at this time", true, tMail[1];
 	end
 end
-
-
---[[
-
-tIndex = {
-
-	amenay = {
-		recieved = {
-			[1] = { time, to, from, subject, msg, read },
-			sent = { 
-				nick = { 1...n }
-			}
-		},	
-	},
-}
-
-Problem is we want sent messages to point towards user's recieved messages for the sake of memory savings. But once serialized and reloaded the table will contain two unique entries for the same
-message (sent and received) I need to find a way to prevent it from serializing the references to the received messages, and just let it dynamically rebuild the received table with the unread
- entries.... perhaps a special version of serialize that tests the read condition while traversing the received table?
-
-Or maybe we just make a proxy table with a method to tie sent and received together.
-
-Or maybe we use a light db implementation.
-]]
