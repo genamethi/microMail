@@ -18,50 +18,56 @@ tMail = {
 	[3] = "", --Email
 	[4] = true, -- Operator?
 	tConfig = {
-		nInboxSize = 40,
-		nOutboxSize = 40,
 		sMailFile = "Index.l-tbl";
 	};
 }
 
---{ [1] = {} --[[Sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } 
+--{ [1] = {} --[[Sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } --Eventual table structure.
 
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
+--[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
+--[[ Less contatenation on the fly if you have the botname ready. ]]
 sFromBot = "<" .. tMail[1] .. "> ";
+--[[ See next block for an explanation of these three variables ]]
 ActualUser, rcv, ins = "", true, true;
 
 do
+	--[[ Loading the mailfile, first load text into memory then execute it! tIndex should exist after this, but we don't bother testing that. nope. ]]
 	local fMail = loadfile( sPath .. tMail.tConfig.sMailFile );
 	if fMail then
 		fMail( );
 		fMail = nil;
 	else
+		--[[ The things we do when tIndex does not exist. ]]
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
 		_tIndex = { };
-		setmetatable( tIndex, { __index = function( t, k )
-				if rcv then
-					return _tIndex[ k ]
-				else
-					local ret = {};
-					for i,v in pairs( _tIndex[ k ].sent ) do
-						ret[ #ret + 1 ] = _tIndex[ k ][ v ];
-					end
-					return ret;
-				end
-			end,
-			__newindex = function( t, k, v )
-				if ins then
-					_tIndex[k] = v;
-					_tIndex[k].sent[ v[2] ][ #t ] = true;
-				else
-					_tIndex[k] = nil;
-					_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
-				end
-			end, } 
-		)
 	end
+	--[[ This shit makes my head spin, basically it is inteded as way to control accesss to the table in a way that provides us with snycronized send and received mailboxes.
+		I don't think this implementation will stick because before creating it I still was not 100% sure how I wanted things to behave.]]
+	setmetatable( tIndex, { 
+		__index = function( t, k )
+			if rcv then
+				return _tIndex[ k ]
+			else
+				local ret = {};
+				for i,v in pairs( _tIndex[ k ].sent ) do
+					ret[ #ret + 1 ] = _tIndex[ k ][ v ];
+				end
+				return ret;
+			end
+		end,
+		__newindex = function( t, k, v )
+			if ins then
+				_tIndex[k] = v;
+				_tIndex[k].sent[ v[2] ][ #t ] = true;
+			else
+				_tIndex[k] = nil;
+				_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
+			end
+		end, } 
+	)
 end
 
 function OnStartup( )

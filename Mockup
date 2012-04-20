@@ -1,0 +1,16 @@
+Expected behavior:
+
+!inbox -- Lists names of senders along with counts.
+!outbox -- Lists names of recepients along with counts.
+
+!chvw <username> [outbox] -- Defaults to inbox unless outbox is specified. Lists Index, Nick, Subject, Time (and maybe strlen) Use refresh to set you to root. (STATEFUL)
+
+!dmail <Index> -- Permanently deletes message specified. Uses current view.	
+
+!rmail <Index> -- Displays specified message from current view.
+
+!cmail <Recepient> <Subject> -- Starts a message. Use wmail to send. Use refresh to cancel composition. (STATEFUL)
+
+!wmail <Message> -- Sends message to current recepient.
+
+!refresh - Clears all stateful information, then displays inbox.
