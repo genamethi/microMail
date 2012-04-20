@@ -29,6 +29,7 @@ tMail = {
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
 sFromBot = "<" .. tMail[1] .. "> ";
+ActualUser, rcv, ins = "", true, true;
 
 do
 	local fMail = loadfile( sPath .. tMail.tConfig.sMailFile );
@@ -38,13 +39,13 @@ do
 	else
 		os.execute( "mkdir " .. sPath );
 		tIndex = { };
-		local _tIndex = tIndex;
+		_tIndex = { };
 		setmetatable( tIndex, { __index = function( t, k )
 				if rcv then
 					return _tIndex[ k ]
 				else
 					local ret = {};
-					for i,v in pairs( _tIndex[ ActualUser ].sent ) do
+					for i,v in pairs( _tIndex[ k ].sent ) do
 						ret[ #ret + 1 ] = _tIndex[ k ][ v ];
 					end
 					return ret;
@@ -53,7 +54,7 @@ do
 			__newindex = function( t, k, v )
 				if ins then
 					_tIndex[k] = v;
-					_tIndex[ ActualUser ].sent[ v[2] ][ #t ] = true;
+					_tIndex[k].sent[ v[2] ][ #t ] = true;
 				else
 					_tIndex[k] = nil;
 					_tIndex[ ActualUser ].sent[ v[2] ][ k ] = nil;
@@ -70,7 +71,8 @@ function OnStartup( )
 		f( );
 		f = nil;
 	end
-	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Namebrand" } );
+
+	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "generic" } );
 end
 	
 function UserConnected( tUser )
@@ -98,12 +100,33 @@ function ChatArrival( tUser, sData )
 	end
 end			
 
+function ToArrival( tUser, sData )
+	local sToUser = sData:match( "^(%S+)", 6 );
+	local nInitIndex = #sToUser + 18 + #tUser.sNick * 2;
+	sim.hook_ToArrival( tUser, sData, sToUser, nInitIndex );
+	if sData:match( sPre, nInitIndex ) then
+		local sCmd = sData:match( "^(%w+)", nInitIndex + 1 )
+		if sCmd then
+			sCmd = sCmd:lower( )
+			if tCommandArrivals[ sCmd ] then
+				if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
+					local sMsg;
+					if ( nInitIndex + #sCmd ) <= #sData + 2 then sMsg = sData:sub( nInitIndex + #sCmd + 2 ) end
+					return ExecuteCommand( tUser, sMsg, sCmd, true );
+				else
+					return Core.SendPmToUser( tUser, sHBName,  "*** Permission denied.\124" ), true;
+				end
+			end
+		end
+	end
+end
+
 function OnExit( )
-	SaveToFile( sPath .. tMail.tConfig.sMailFile, _tIndex, "_tIndex", "w+" )
+	SaveToFile( sPath .. tMail.tConfig.sMailFile, tIndex, "tIndex", "w+" )
 	sim.hook_OnExit()
 end
 
-OnError, OpDisconnected, ToArrival = sim.hook_OnError, sim.hook_OpDisconnected, sim.hook_ToArrival;
+OnError, OpDisconnected = sim.hook_OnError, sim.hook_OpDisconnected;
 
 function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
@@ -131,9 +154,9 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 end
 
 function tremove( t, k )
-	k = k or #t;
+	local tlen = #t;
 	t[k] = nil;
-	for i = k, #t, 1 do
+	for i = k, tlen, 1 do
 		t[i] = t[i+1];
 	end
 end
@@ -180,7 +203,7 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	if sRec and nInd then
 		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] and ( ( tIndex[ sRec ][ nInd ][ 3 ] == tUser.sNick and tIndex[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
 			tremove( tIndex[ sRec ], nInd );
-			return ( tCommandArrivals.mailstatus:Action( tUser, sMsg ) ), "Success.", true, tMail[1];
+			return true, "Success.", true, tMail[1];
 		else
 			return true, "You cannot delete this message.\124", true, tMail[1];
 		end
@@ -239,7 +262,6 @@ function tCommandArrivals.rmail:Action( tUser )
 		return true, "You have no messages at this time", true, tMail[1];
 	end
 end
-
 
 
 --[[
