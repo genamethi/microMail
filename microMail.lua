@@ -41,7 +41,7 @@ do
 	else
 		--[[ The things we do when tIndex does not exist. ]]
 		os.execute( "mkdir " .. sPath );
-		tIndex = { };
+		tIndex = { Inbox = {}, Sent = {} };
 	end
 end
 
@@ -148,7 +148,8 @@ end
 function IndexMail( ... ) 
 end
 
-tCommandArrivals = {	wmail = {
+tCommandArrivals = {	
+	wmail = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
 	},
@@ -219,12 +220,13 @@ function tCommandArrivals.wmail:Action( tUser, sMsg )
 		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" )
 		if sRec and sMail then
 			--Check if tUser has a mailbox
-			if tIndex[ sRec ] then
-				tIndex[ sRec ][ #tIndex[ sRec ] + 1 ] = { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false };
-				tIndex[ sRec ].nCounter = tIndex[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
+			if tIndex.Inbox[ sRec ] then
+				tIndex.Inbox[ sRec ][ #tIndex.Inbox[ sRec ] + 1 ] = { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false };
+				tIndex.Inbox[ sRec ].nCounter = tIndex.Inbox[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
 				return true, "You sent the following message to " .. sRec .. ": " .. sMail;
 			else
-				tIndex[ sRec ] = { { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false }, nCounter = 1 };
+				tIndex.Inbox[ sRec ] = { { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false }, nCounter = 1 };
+				tIndex.Sent[ tUser.sNick ][ #tIndex.Sent[ tUser.sNick ] ] = tIndex.Inbox[ sRec ][ #tIndex.Inbox[ sRec ] ];
 				return true, "You sent the following message to " .. sRec .. ": "  .. sMail;
 			end
 		else
@@ -233,16 +235,17 @@ function tCommandArrivals.wmail:Action( tUser, sMsg )
 	end
 end
 
-function tCommandArrivals.rmail:Action( tUser )
-	if tIndex[ tUser.sNick ] then
-		local sMsg = "\n\n";
-		for i, v in ipairs( tIndex[ tUser.sNick ] ) do
-			sMsg = sMsg .. "[" .. os.date( "%x - %X", v[1] ) .. "] " .. i .. "# <" .. v[3] .. "> " .. v[5] .. "\n";
-			tIndex[ tUser.sNick ].nCounter = v[6] and tIndex[ tUser.sNick ].nCounter or tIndex[ tUser.sNick ].nCounter - 1;
-			v[6] = v[6] or true;
+function tCommandArrivals.rmail:Action( tUser, sMsg )
+	local sBox, sNick, nIndex = sMsg:match( "^(%S+)%s(%S+}%s(%d+)|" );
+	if tIndex[ sBox ][ sNick ] then
+		if tIndex[ sBox ][ sNick ][ nIndex ] then
+			local tMsg = tIndex[ sBox ][ sNick ][ nIndex ];
+			if sBox:lower() == "inbox" then tMsg[6], tIndex.Inbox[ tUser.sNick ].nCounter = true, tIndex.Inbox[ tUser.sNick ].nCounter - 1; end
+			return true, "[" .. os.date( "%x - %X", tMsg[1] ) .. "] " .. nIndex .. "# <" .. tMsg[3] .. "> " .. tMsg[5] .. "\n", false, tMail[1];
+		else
+			return true, "*** Error, " .. sNick .. " does not have that many messages in your " .. sBox, false, tMail[1];
 		end
-		return true, sMsg, true, tMail[1];
 	else
-		return true, "You have no messages at this time", true, tMail[1];
+		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
