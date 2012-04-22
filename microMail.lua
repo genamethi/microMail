@@ -22,26 +22,27 @@ tMail = {
 	};
 }
 
---{ [1] = {} --[[Sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } --Eventual table structure.
+--{ [1] = {} --[[sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } --Eventual table structure.
 
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
 --[[ Less concatenation on the fly if you have the botname ready. ]]
 sFromBot = "<" .. tMail[1] .. "> ";
---[[ See next block for an explanation of these three variables ]]
-ActualUser, rcv, ins = "", true, true;
+--[[ Used to keep track of who is in the composing state ]]
+tCompose = {};
 
 do
-	--[[ Loading the mailfile, first load text into memory then execute it! tIndex should exist after this, but we don't bother testing that. nope. ]]
+	--[[ Loading the mailfile, first load text into memory then execute it! tBoxes should exist after this, but we don't bother testing that. nope. ]]
 	local fMail = loadfile( sPath .. tMail.tConfig.sMailFile );
 	if fMail then
 		fMail( );
 		fMail = nil;
-	else
-		--[[ The things we do when tIndex does not exist. ]]
+	end
+	if not tBoxes then
+		--[[ The things we do when tBoxes does not exist. ]]
 		os.execute( "mkdir " .. sPath );
-		tIndex = { Inbox = {}, Sent = {} };
+		tBoxes = { inbox = {}, sent = {} };
 	end
 end
 
@@ -58,8 +59,8 @@ end
 	
 function UserConnected( tUser )
 	--[[ New mail? Notify user. ]]
-	if tIndex and tIndex[ tUser.sNick ] and tIndex[ tUser.sNick ].nCounter > 0 then
-		Core.SendPmToUser( tUser, tMail[1], "You have " .. tIndex[ tUser.sNick ].nCounter .. " new messages in your inbox. Type !rmail to read.\124" );
+	if tBoxes and tBoxes[ tUser.sNick ] and tBoxes[ tUser.sNick ].nCounter > 0 then
+		Core.SendPmToUser( tUser, tMail[1], "You have " .. tBoxes[ tUser.sNick ].nCounter .. " new messages in your inbox. Type !rmail to read.\124" );
 	end
 end
 
@@ -86,17 +87,24 @@ function ToArrival( tUser, sData )
 	local sToUser = sData:match( "^(%S+)", 6 );
 	local nInitIndex = #sToUser + 18 + #tUser.sNick * 2;
 	sim.hook_ToArrival( tUser, sData, sToUser, nInitIndex );
-	if sData:match( sPre, nInitIndex ) then
-		local sCmd = sData:match( "^(%w+)", nInitIndex + 1 )
-		if sCmd then
-			sCmd = sCmd:lower( )
-			if tCommandArrivals[ sCmd ] then
-				if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
-					local sMsg;
-					if ( nInitIndex + #sCmd ) <= #sData + 2 then sMsg = sData:sub( nInitIndex + #sCmd + 2 ) end
-					return ExecuteCommand( tUser, sMsg, sCmd, true );
-				else
-					return Core.SendPmToUser( tUser, sHBName,  "*** Permission denied.\124" ), true;
+	if sToUser == tMail[1] then
+		if tCompose[ tUser.sNick ] then
+			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
+			tCompose[ tUser.sNick ] = nil;
+			return Core.SendPmToUser( tUser, sFrom, sRetMsg ), bRet;
+		end
+		if sData:match( sPre, nInitIndex ) then
+			local sCmd = sData:match( "^(%w+)", nInitIndex + 1 )
+			if sCmd then
+				sCmd = sCmd:lower( )
+				if tCommandArrivals[ sCmd ] then
+					if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
+						local sMsg;
+						if ( nInitIndex + #sCmd ) <= #sData + 2 then sMsg = sData:sub( nInitIndex + #sCmd + 2 ) end
+						return ExecuteCommand( tUser, sMsg, sCmd, true );
+					else
+						return Core.SendPmToUser( tUser, sHBName,  "*** Permission denied.\124" ), true;
+					end
 				end
 			end
 		end
@@ -104,7 +112,7 @@ function ToArrival( tUser, sData )
 end
 
 function OnExit( )
-	SaveToFile( sPath .. tMail.tConfig.sMailFile, tIndex, "tIndex", "w+" )
+	SaveToFile( sPath .. tMail.tConfig.sMailFile, tBoxes, "tBoxes", "w+" )
 	sim.hook_OnExit()
 end
 
@@ -145,7 +153,26 @@ function tremove( t, k )
 	end
 end
 
-function IndexMail( ... ) 
+function Send( sSender, sRec, sMsg, sSubj )
+	sSubj = sSubj or "(No Subject)";
+	if tBoxes.inbox[ sRec ] then
+		tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };
+		tBoxes.inbox[ sRec ].nCounter = tBoxes.inbox[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
+		if tBoxes.sent[ sSender ] then
+			tBoxes.sent[ sRec ][ #tBoxes.sent[ sRec ] + 1 ] = tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ];
+		else
+			tBoxes.sent[ sRec ] = { tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ] }
+		end
+		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
+	else
+		tBoxes.inbox[ sRec ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };
+		if tBoxes.sent[ sRec ] then
+			tBoxes.sent[ sRec ][ #tBoxes.sent[ sRec ] + 1 ] = tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ];
+		else
+			tBoxes.sent[ sRec ] = { tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ] }
+		end
+		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
+	end
 end
 
 tCommandArrivals = {	
@@ -169,12 +196,15 @@ tCommandArrivals = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " <Recipient> <Index> - Deletes message number (as displayed when checking mail status)\n";
 	},
+	cmail = {
+		Permissions = { [0] = true, true, true, true, true, },
+		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter.\n"
+	}
 }
 
 function tCommandArrivals.mhelp:Action( tUser )
-	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. " **-*-**\n\n";
+	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. " Works in main or in PM to " .. tMail[1] .. " **-*-**\n\n";
 	for name, obj in pairs( tCommandArrivals ) do
-	sim.print( name, obj )
 		if obj.Permissions[ tUser.iProfile ] then
 			sRet = sRet .. name .. obj.sHelp;
 		end
@@ -186,8 +216,8 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
 	nInd = tonumber( nInd );
 	if sRec and nInd then
-		if tIndex[ sRec ] and tIndex[ sRec ][ nInd ] and ( ( tIndex[ sRec ][ nInd ][ 3 ] == tUser.sNick and tIndex[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
-			tremove( tIndex[ sRec ], nInd );
+		if tBoxes[ sRec ] and tBoxes[ sRec ][ nInd ] and ( ( tBoxes[ sRec ][ nInd ][ 3 ] == tUser.sNick and tBoxes[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
+			tremove( tBoxes[ sRec ], nInd );
 			return true, "Success.", true, tMail[1];
 		else
 			return true, "You cannot delete this message.\124", true, tMail[1];
@@ -202,7 +232,7 @@ function tCommandArrivals.mailstatus:Action( tUser, sMsg )
 	local sRec = sMsg:match( "^(%S+)" )
 	local sRet = sRec and sRec .. " has not read the following messages:\n\n" or "The following messages are still unread:\n\n";
 	if sRec then
-		for i,v in ipairs( tIndex[ sRec ] ) do
+		for i,v in ipairs( tBoxes[ sRec ] ) do
 			if v[ 3 ] == tUser.sNick then
 				if not v[ 6 ] then 
 					sRet = sRet .. "[" .. os.date( "%x - %X", v[1] ) .. "] <" .. v[3] .. "> " .. v[5] .. "\n";
@@ -217,35 +247,45 @@ end
 
 function tCommandArrivals.wmail:Action( tUser, sMsg )
 	if sMsg then
-		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" )
+		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" );
 		if sRec and sMail then
-			--Check if tUser has a mailbox
-			if tIndex.Inbox[ sRec ] then
-				tIndex.Inbox[ sRec ][ #tIndex.Inbox[ sRec ] + 1 ] = { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false };
-				tIndex.Inbox[ sRec ].nCounter = tIndex.Inbox[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
-				return true, "You sent the following message to " .. sRec .. ": " .. sMail;
-			else
-				tIndex.Inbox[ sRec ] = { { os.time(), sRec, tUser.sNick, ""--[[placeholder]], sMail, false }, nCounter = 1 };
-				tIndex.Sent[ tUser.sNick ][ #tIndex.Sent[ tUser.sNick ] ] = tIndex.Inbox[ sRec ][ #tIndex.Inbox[ sRec ] ];
-				return true, "You sent the following message to " .. sRec .. ": "  .. sMail;
-			end
+			return Send( tUser.sNick:lower(), sRec:lower(), sMail );
 		else
-			return true, "Syntax error, try !wmail recipient message here\124", false, tMail[1];
+			return true, "Syntax error, try !wmail recipient message here\124", true, tMail[1];
 		end
 	end
 end
 
+function tCommandArrivals.cmail:Action( tUser, sMsg )
+	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
+	if sRec then
+		sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)";
+		tCompose[ tUser.sNick:lower() ] = { 0, sRec:lower(), tUser.sNick:lower(), sSubj, "", false };
+		return true, "*** Composing message, please type message and press enter to send.\124", true, tMail[1];
+	else
+		return true, "Syntax error, you must specify a recipient.\124", true, tMail[1];
+	end
+end
+	
+
 function tCommandArrivals.rmail:Action( tUser, sMsg )
-	local sBox, sNick, nIndex = sMsg:match( "^(%S+)%s(%S+}%s(%d+)|" );
-	if tIndex[ sBox ][ sNick ] then
-		if tIndex[ sBox ][ sNick ][ nIndex ] then
-			local tMsg = tIndex[ sBox ][ sNick ][ nIndex ];
-			if sBox:lower() == "inbox" then tMsg[6], tIndex.Inbox[ tUser.sNick ].nCounter = true, tIndex.Inbox[ tUser.sNick ].nCounter - 1; end
-			return true, "[" .. os.date( "%x - %X", tMsg[1] ) .. "] " .. nIndex .. "# <" .. tMsg[3] .. "> " .. tMsg[5] .. "\n", false, tMail[1];
+	local sBox, sNick, nIndex = sMsg:match( "^(%S+)%s(%S+)%s(%d+)|$" );
+	if sBox and sNick and nIndex then
+		sBox = sBox:lower();
+		sNick = sNick:lower();
+		nIndex = tonumber( nIndex );
+	end
+	if tBoxes[ sBox ][ sNick ] then
+		if tBoxes[ sBox ][ sNick ][ nIndex ] then
+			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
+			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick:lower() ].nCounter - 1; end
+			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
-			return true, "*** Error, " .. sNick .. " does not have that many messages in your " .. sBox, false, tMail[1];
+			return true, "*** Error, " .. sNick .. " does not have that many messages in your " .. sBox, true, tMail[1];
 		end
 	else
 		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
+
+

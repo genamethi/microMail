@@ -9,9 +9,8 @@ Expected behavior:
 
 !rmail <[Inbox|Outbox]> <Username> <Index> -- Displays specified message.
 
-!cmail <Recepient> <Subject> -- Starts a message. Use wmail to send. Use refresh to cancel composition. (STATEFUL)
+!cmail <Recepient> <Subject> -- Starts a message. Type message in PM window to mail bot then hit enter to send. Type cancel to cancel composition. (STATEFUL)
 
-!wmail <Message> -- Sends message to current recepient.
 
 !refresh - Clears all stateful information, then displays inbox.
 
