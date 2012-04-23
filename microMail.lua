@@ -203,6 +203,10 @@ tCommandArrivals = {
 	inbox = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " - Lists all messages in inbox.\n"
+	},
+	sent = {
+		Permissions = { [0] = true, true, true, true, true, },
+		sHelp = " - Lists all sent messages.\n"
 	}
 }
 
@@ -253,6 +257,14 @@ function tCommandArrivals.inbox:Action( tUser )
 	local ret = "Your messages are as follows:\n\n";
 	for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
 		ret = ret .. "Type '!rmail " .. v[3] .. " " .. i .. "' to view this message: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+	end
+	return true, ret, true, tMail[1];
+end
+
+function tCommandArrivals.sent:Action( tUser )
+	local ret = "Your messages are as follows:\n\n";
+	for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
+		ret = ret .. "Type '!rmail sent " .. v[3] .. " " .. i .. "' to view this message: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
 	end
 	return true, ret, true, tMail[1];
 end
