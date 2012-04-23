@@ -154,22 +154,22 @@ function tremove( t, k )
 end
 
 function Send( sSender, sRec, sMsg, sSubj )
-	sSubj = sSubj or "(No Subject)";
-	if tBoxes.inbox[ sRec ] then
-		tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };
-		tBoxes.inbox[ sRec ].nCounter = tBoxes.inbox[ sRec ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
-		if tBoxes.sent[ sSender ] then
-			tBoxes.sent[ sRec ][ #tBoxes.sent[ sRec ] + 1 ] = tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ];
+	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
+	if tBoxes.inbox[ sRec_low ] then
+		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };
+		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
+		if tBoxes.sent[ sSender_low ] then
+			tBoxes.sent[ sRec_low ][ #tBoxes.sent[ sRec_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
 		else
-			tBoxes.sent[ sRec ] = { tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ] }
+			tBoxes.sent[ sRec_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	else
-		tBoxes.inbox[ sRec ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };
-		if tBoxes.sent[ sRec ] then
-			tBoxes.sent[ sRec ][ #tBoxes.sent[ sRec ] + 1 ] = tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ];
+		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };
+		if tBoxes.sent[ sRec_low ] then
+			tBoxes.sent[ sRec_low ][ #tBoxes.sent[ sRec_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
 		else
-			tBoxes.sent[ sRec ] = { tBoxes.inbox[ sRec ][ #tBoxes.inbox[ sRec ] ] }
+			tBoxes.sent[ sRec_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
@@ -194,11 +194,15 @@ tCommandArrivals = {
 	},
 	dmail = {
 		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Recipient> <Index> - Deletes message number (as displayed when checking mail status)\n";
+		sHelp = " <Recipient> <Index> - Deletes message number. (as displayed when checking mail status)\n";
 	},
 	cmail = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter.\n"
+	},
+	inbox = {
+		Permissions = { [0] = true, true, true, true, true, },
+		sHelp = " - Lists all messages in inbox.\n"
 	}
 }
 
@@ -245,11 +249,19 @@ function tCommandArrivals.mailstatus:Action( tUser, sMsg )
 	end
 end
 
+function tCommandArrivals.inbox:Action( tUser )
+	local ret = "Your messages are as follows:\n\n";
+	for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
+		ret = ret .. "Type '!rmail " .. v[3] .. " " .. i .. "' to view this message: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+	end
+	return true, ret, true, tMail[1];
+end
+
 function tCommandArrivals.wmail:Action( tUser, sMsg )
 	if sMsg then
 		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" );
 		if sRec and sMail then
-			return Send( tUser.sNick:lower(), sRec:lower(), sMail );
+			return Send( tUser.sNick, sRec, sMail );
 		else
 			return true, "Syntax error, try !wmail recipient message here\124", true, tMail[1];
 		end
@@ -260,7 +272,7 @@ function tCommandArrivals.cmail:Action( tUser, sMsg )
 	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
 	if sRec then
 		sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)";
-		tCompose[ tUser.sNick:lower() ] = { 0, sRec:lower(), tUser.sNick:lower(), sSubj, "", false };
+		tCompose[ tUser.sNick:lower() ] = { 0, sRec, tUser.sNick, sSubj, "", false };
 		return true, "*** Composing message, please type message and press enter to send.\124", true, tMail[1];
 	else
 		return true, "Syntax error, you must specify a recipient.\124", true, tMail[1];
@@ -269,16 +281,16 @@ end
 	
 
 function tCommandArrivals.rmail:Action( tUser, sMsg )
-	local sBox, sNick, nIndex = sMsg:match( "^(%S+)%s(%S+)%s(%d+)|$" );
-	if sBox and sNick and nIndex then
-		sBox = sBox:lower();
-		sNick = sNick:lower();
-		nIndex = tonumber( nIndex );
+	local sBox, sNick, nIndex = sMsg:lower():match( "^(%S+)%s(%S+)%s?(%S-)|$" );
+	if sBox and sNick then
+		if type( tonumber ( sNick ) ) == "number" and sBox ~= "sent" and sBox ~= "inbox" then
+		    sBox, sNick, nIndex = "inbox", sBox, tonumber( sNick );
+		end
 	end
 	if tBoxes[ sBox ][ sNick ] then
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then
 			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
-			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick:lower() ].nCounter - 1; end
+			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end
 			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
 			return true, "*** Error, " .. sNick .. " does not have that many messages in your " .. sBox, true, tMail[1];
@@ -287,5 +299,3 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
-
-
