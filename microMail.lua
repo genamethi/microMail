@@ -159,17 +159,17 @@ function Send( sSender, sRec, sMsg, sSubj )
 		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };
 		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1; --Increments to keep track of messages regardless of standing of array.
 		if tBoxes.sent[ sSender_low ] then
-			tBoxes.sent[ sRec_low ][ #tBoxes.sent[ sRec_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
 		else
-			tBoxes.sent[ sRec_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
+			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	else
 		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };
-		if tBoxes.sent[ sRec_low ] then
-			tBoxes.sent[ sRec_low ][ #tBoxes.sent[ sRec_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+		if tBoxes.sent[ sSender_low ] then
+			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
 		else
-			tBoxes.sent[ sRec_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
+			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
@@ -299,6 +299,7 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 		    sBox, sNick, nIndex = "inbox", sBox, tonumber( sNick );
 		end
 	end
+	sim.print( sBox, sNick )
 	if tBoxes[ sBox ][ sNick ] then
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then
 			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
