@@ -184,10 +184,6 @@ tCommandArrivals = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " - PM's all messages sent to you from all users.\n";
 	},
-	mailstatus = {
-		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Recipient> - PM's you unread messages sent to recipient by yourself.\n";
-	},
 	mhelp = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " - PMs this message to you. (sort order of help is dynamic and may change at any time)\n";
@@ -220,12 +216,13 @@ function tCommandArrivals.mhelp:Action( tUser )
 	return true, sRet, true, tMail[1];
 end
 
-function tCommandArrivals.dmail:Action( tUser, sMsg )
-	local sRec, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
+function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have to make changes to support both sent and received messages. BROKEN
+	local sRec, sBox, nInd = sMsg:match( "^(%S+)%s(%S+)%s(%d+)|" );
+	sRec = sRec:lower()
 	nInd = tonumber( nInd );
-	if sRec and nInd then
-		if tBoxes[ sRec ] and tBoxes[ sRec ][ nInd ] and ( ( tBoxes[ sRec ][ nInd ][ 3 ] == tUser.sNick and tBoxes[ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick ) then
-			tremove( tBoxes[ sRec ], nInd );
+	if sRec and sBox and nInd then
+		if tBoxes[ sBox ][ sRec ] and tBoxes[ sBox ][ sRec ][ nInd ] and ( ( tBoxes[ sBox ][ sRec ][ nInd ][ 3 ] == tUser.sNick:lower() and tBoxes[ sBox ][ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick:lower() ) then
+			tremove( tBoxes[ sBox ][ sRec ], nInd );
 			return true, "Success.", true, tMail[1];
 		else
 			return true, "You cannot delete this message.\124", true, tMail[1];
@@ -236,37 +233,28 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	--]]
 end
 
-function tCommandArrivals.mailstatus:Action( tUser, sMsg )
-	local sRec = sMsg:match( "^(%S+)" )
-	local sRet = sRec and sRec .. " has not read the following messages:\n\n" or "The following messages are still unread:\n\n";
-	if sRec then
-		for i,v in ipairs( tBoxes[ sRec ] ) do
-			if v[ 3 ] == tUser.sNick then
-				if not v[ 6 ] then 
-					sRet = sRet .. "[" .. os.date( "%x - %X", v[1] ) .. "] <" .. v[3] .. "> " .. v[5] .. "\n";
-				end
-			end
-		end
-		return true, sRet, true, tMail[1];
-	else
-		return true, "Syntax error, please specify a user\124", false, tMail[1];
-	end
-end
-
 function tCommandArrivals.inbox:Action( tUser )
-	local ret = "Your messages are as follows:\n\n";
-	for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
-		ret = ret .. "Type '!rmail " .. v[3] .. " " .. i .. "' to view this message: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+	local ret = "\n\nYour messages are as follows:\n\n\n";
+	if tBoxes.inbox[ tUser.sNick ] then
+		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
+			ret = ret .. "\tType '!rmail " .. v[3] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
+		end
+		return true, ret, true, tMail[1];
+	else
+		return true, "Sorry, you have an empty inbox!\124", true, tMail[1];
 	end
-	return true, ret, true, tMail[1];
 end
 
 function tCommandArrivals.sent:Action( tUser )
 	local ret = "Your messages are as follows:\n\n";
-	for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
-		ret = ret .. "Type '!rmail sent " .. v[3] .. " " .. i .. "' to view this message: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+	if tBoxes.sent[ tUser.sNick ] then
+		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
+			ret = ret .. "Type '!rmail sent " .. v[3] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+		end
+		return true, ret, true, tMail[1];
+	else
+		return true, "Sorry, you have yet to send any messages!\124", true, tMail[1];
 	end
-	return true, ret, true, tMail[1];
 end
 
 function tCommandArrivals.wmail:Action( tUser, sMsg )
@@ -297,18 +285,21 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 	if sBox and sNick then
 		if type( tonumber ( sNick ) ) == "number" and sBox ~= "sent" and sBox ~= "inbox" then
 		    sBox, sNick, nIndex = "inbox", sBox, tonumber( sNick );
+		else
+			nIndex = tonumber( nIndex );
 		end
 	end
-	sim.print( sBox, sNick )
+	sim.print( sBox, sNick, nIndex )
 	if tBoxes[ sBox ][ sNick ] then
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then
 			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
 			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end
 			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
-			return true, "*** Error, " .. sNick .. " does not have that many messages in your " .. sBox, true, tMail[1];
+			return true, "*** Error, " .. sNick .. " does not have that many messages.\124", true, tMail[1];
 		end
 	else
 		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
+s
