@@ -221,20 +221,25 @@ function tCommandArrivals.mhelp:Action( tUser )
 end
 
 function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have to make changes to support both sent and received messages. BROKEN
-	local sRec, sBox, nInd = sMsg:match( "^(%S+)%s(%S+)%s(%d+)|" );
-	sRec = sRec:lower()
-	nInd = tonumber( nInd );
-	if sRec and sBox and nInd then
-		if tBoxes[ sBox ][ sRec ] and tBoxes[ sBox ][ sRec ][ nInd ] and ( ( tBoxes[ sBox ][ sRec ][ nInd ][ 3 ] == tUser.sNick:lower() and tBoxes[ sBox ][ sRec ][ nInd ][ 6 ] == false ) or sRec == tUser.sNick:lower() ) then
-			tremove( tBoxes[ sBox ][ sRec ], nInd );
-			return true, "Success.", true, tMail[1];
+	local sBox, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
+	nInd, sNick = tonumber( nInd ), tUser.sNick:lower();
+	if sBox and nInd then
+		if tBoxes[ sBox ][ sNick ] then
+			if tBoxes[ sBox ][ sNick ][ nInd ] then
+				if not tBoxes[ sBox ][ sNick ][ nInd ][6] then
+					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
+					tremove( tBoxes[ sBox ][ sNick ], nInd );
+					return true, "Successfully deleted message.", true, tMail[1];
+				end
+			else
+				return true, "Error, you don't have that many messages in this mailbox!\124", true, tMail[1];
+			end
 		else
-			return true, "You cannot delete this message.\124", true, tMail[1];
+			return true, "You don't have any messages to delete in this mailbox!\124", true, tMail[1];
 		end
 	else
 		return true, "Syntax error", true, tMail[1];
 	end
-	--]]
 end
 
 function tCommandArrivals.inbox:Action( tUser )
@@ -306,4 +311,4 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
-s
+
