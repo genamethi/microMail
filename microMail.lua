@@ -9,6 +9,10 @@
 		Reference,
 		Threads, (in the conversational sense)
 		CC & BCC
+		Special serialization function to support references to other table objects.
+		cancel functionality
+		mailbox storage limits.
+		attachments?
 
 ]]
 require "sim"
