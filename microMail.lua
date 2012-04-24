@@ -247,11 +247,11 @@ function tCommandArrivals.inbox:Action( tUser )
 	local ret = "\n\nYour messages are as follows:\n\n\n";
 	if tBoxes.inbox[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
-			ret = ret .. "\tType '!rmail " .. v[3] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
+			ret = ret .. "[" .. i .. "]\tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\tTo: " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
 		end
-		return true, ret, true, tMail[1];
+		return true, ret, true, tMail[ 1 ];
 	else
-		return true, "Sorry, you have an empty inbox!\124", true, tMail[1];
+		return true, "Sorry, you have an empty inbox!\124", true, tMail[ 1 ];
 	end
 end
 
@@ -259,9 +259,9 @@ function tCommandArrivals.sent:Action( tUser )
 	local ret = "Your messages are as follows:\n\n";
 	if tBoxes.sent[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
-			ret = ret .. "Type '!rmail sent " .. v[3] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n";
+			ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. v[ 3 ] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\tTo: " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
 		end
-		return true, ret, true, tMail[1];
+		return true, ret, true, tMail[ 1] ;
 	else
 		return true, "Sorry, you have yet to send any messages!\124", true, tMail[1];
 	end
@@ -299,7 +299,6 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 			nIndex = tonumber( nIndex );
 		end
 	end
-	sim.print( sBox, sNick, nIndex )
 	if tBoxes[ sBox ][ sNick ] then
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then
 			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
