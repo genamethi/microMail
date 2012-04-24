@@ -16,7 +16,6 @@
 		Make matches for sBox strictly match inbox or sent
 
 ]]
-require "sim"
 tMail = {
 	[1] = "#Mail", --Nick
 	[2] = "",  --Description
@@ -59,7 +58,6 @@ function OnStartup( )
 		f( );
 		f = nil;
 	end
-	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "generic" } );
 end
 	
 function UserConnected( tUser )
@@ -91,7 +89,6 @@ end
 function ToArrival( tUser, sData )
 	local sToUser = sData:match( "^(%S+)", 6 );
 	local nInitIndex = #sToUser + 18 + #tUser.sNick * 2;
-	sim.hook_ToArrival( tUser, sData, sToUser, nInitIndex );
 	if sToUser == tMail[1] then
 		if tCompose[ tUser.sNick ] then
 			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
@@ -118,10 +115,7 @@ end
 
 function OnExit( )
 	SaveToFile( sPath .. tMail.tConfig.sMailFile, tBoxes, "tBoxes", "w+" )
-	sim.hook_OnExit()
 end
-
-OnError, OpDisconnected = sim.hook_OnError, sim.hook_OpDisconnected;
 
 function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
