@@ -305,4 +305,4 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 		return true, "Specified box is empty.", true, tMail[1];
 	end
 end
-
+--
