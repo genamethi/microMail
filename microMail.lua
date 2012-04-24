@@ -13,6 +13,7 @@
 		cancel functionality
 		mailbox storage limits.
 		attachments?
+		Make matches for sBox strictly match inbox or sent
 
 ]]
 require "sim"
@@ -221,16 +222,16 @@ function tCommandArrivals.mhelp:Action( tUser )
 end
 
 function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have to make changes to support both sent and received messages. BROKEN
-	local sBox, nInd = sMsg:match( "^(%S+)%s(%d+)|" );
-	nInd, sNick = tonumber( nInd ), tUser.sNick:lower();
+	local sBox, nInd = sMsg:match( "^(%S-)%s-(%d+)|" );
+	nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(), ( sBox:lower() == "inbox" or sBox:lower() == "sent" ) and sBox or "inbox";
 	if sBox and nInd then
 		if tBoxes[ sBox ][ sNick ] then
 			if tBoxes[ sBox ][ sNick ][ nInd ] then
 				if not tBoxes[ sBox ][ sNick ][ nInd ][6] then
 					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
-					tremove( tBoxes[ sBox ][ sNick ], nInd );
-					return true, "Successfully deleted message.", true, tMail[1];
 				end
+				tremove( tBoxes[ sBox ][ sNick ], nInd );
+				return true, "Successfully deleted message.", true, tMail[1];
 			else
 				return true, "Error, you don't have that many messages in this mailbox!\124", true, tMail[1];
 			end
