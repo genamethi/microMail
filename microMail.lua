@@ -94,6 +94,10 @@ function ToArrival( tUser, sData )
 	sim.hook_ToArrival( tUser, sData, sToUser, nInitIndex );
 	if sToUser == tMail[1] then
 		if tCompose[ tUser.sNick ] then
+			if "cancel" == sData:lower():match( "^(%w+)", nInitIndex + 1 ) then
+				tCompose[ tUser.sNick ] = nil;
+				return Core.SendPmToUser( tUser, tMail[1], "You cancelled your current composition.\124" );
+			end
 			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
 			tCompose[ tUser.sNick ] = nil;
 			return Core.SendPmToUser( tUser, sFrom, sRetMsg ), bRet;
@@ -208,7 +212,11 @@ tCommandArrivals = {
 	sent = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " - Lists all sent messages.\n"
-	}
+	},
+	cancel = {
+		Permissions = { [0] = true, true, true, true, true, },
+		sHelp = " - Cancels compose mode. (for the moment)\n"
+	},
 }
 
 function tCommandArrivals.mhelp:Action( tUser )
@@ -265,7 +273,7 @@ function tCommandArrivals.sent:Action( tUser )
 		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
 			ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 256 ) .. "\n";
 		end
-		return true, ret, true, tMail[ 1] ;
+		return true, ret, true, tMail[ 1 ] ;
 	else
 		return true, "Sorry, you have yet to send any messages!\124", true, tMail[1];
 	end
