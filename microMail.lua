@@ -64,8 +64,8 @@ end
 	
 function UserConnected( tUser )
 	--[[ New mail? Notify user. ]]
-	if tBoxes and tBoxes[ tUser.sNick ] and tBoxes[ tUser.sNick ].nCounter > 0 then
-		Core.SendPmToUser( tUser, tMail[1], "You have " .. tBoxes[ tUser.sNick ].nCounter .. " new messages in your inbox. Type !rmail to read.\124" );
+	if tBoxes.inbox[ tUser.sNick:lower() ] and tBoxes.inbox[ tUser.sNick:lower() ].nCounter > 0 then
+		Core.SendPmToUser( tUser, tMail[1], "You have " .. tBoxes.inbox[ tUser.sNick:lower() ].nCounter .. " new messages in your inbox. Type !inbox to read.\124" );
 	end
 end
 
@@ -244,10 +244,14 @@ function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have 
 end
 
 function tCommandArrivals.inbox:Action( tUser )
-	local ret = "\n\nYour messages are as follows:\n\n\n";
+	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 45 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 256 ) .. "\n";
 	if tBoxes.inbox[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
-			ret = ret .. "[" .. i .. "]\tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\tTo: " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
+			if not v[6] then
+				ret = ret .. "[" .. i .. "] \tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t" .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 256 ) .. "\n";
+			else			
+				ret = ret .. "[" .. i .. "]\tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t" .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 256 ) .. "\n";
+			end
 		end
 		return true, ret, true, tMail[ 1 ];
 	else
@@ -256,10 +260,10 @@ function tCommandArrivals.inbox:Action( tUser )
 end
 
 function tCommandArrivals.sent:Action( tUser )
-	local ret = "Your messages are as follows:\n\n";
+	local ret = "\n\nYour messages are as follows:\n\n # \t\tCommand" .. string.rep( " ", 45 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 256 ) .. "\n";
 	if tBoxes.sent[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
-			ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. v[ 3 ] .. " " .. i .. "' to view this message: Author: " .. v[ 3 ] .. "\tTo: " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\tSubject: " .. v[ 4 ] .. "\n\n";
+			ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 256 ) .. "\n";
 		end
 		return true, ret, true, tMail[ 1] ;
 	else
