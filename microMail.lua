@@ -191,7 +191,7 @@ tCommandArrivals = {
 	},
 	rmail = {
 		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = "<Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
+		sHelp = " <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
 	},
 	mhelp = {
 		Permissions = { [0] = true, true, true, true, true, },
