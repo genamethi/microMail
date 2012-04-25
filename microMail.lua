@@ -16,7 +16,6 @@
 		Make matches for sBox strictly match inbox or sent
 
 ]]
-require "sim"
 tMail = {
 	[1] = "#Mail", --Nick
 	[2] = "",  --Description
@@ -92,6 +91,10 @@ function ToArrival( tUser, sData )
 	local nInitIndex = #sToUser + 18 + #tUser.sNick * 2;
 	if sToUser == tMail[1] then
 		if tCompose[ tUser.sNick ] then
+			if "cancel" == sData:lower():match( "^(%w+)", nInitIndex + 1 ) then
+				tCompose[ tUser.sNick ] = nil;
+				return Core.SendPmToUser( tUser, tMail[1], "You cancelled your current composition.\124" );
+			end
 			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
 			tCompose[ tUser.sNick ] = nil;
 			return Core.SendPmToUser( tUser, sFrom, sRetMsg ), bRet;
@@ -204,7 +207,11 @@ tCommandArrivals = {
 	sent = {
 		Permissions = { [0] = true, true, true, true, true, },
 		sHelp = " - Lists all sent messages.\n"
-	}
+	},
+	cancel = {
+		Permissions = { [0] = true, true, true, true, true, },
+		sHelp = " - Cancels compose mode. (for the moment)\n"
+	},
 }
 
 function tCommandArrivals.mhelp:Action( tUser )
