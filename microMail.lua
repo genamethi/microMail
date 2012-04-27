@@ -27,8 +27,6 @@ tMail = {
 	};
 }
 
---{ [1] = {} --[[sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } --Eventual table structure.
-
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
@@ -152,8 +150,7 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	end
 end
 
---[[ Gracefully removes a single entry from an array then moves everything up.
-]]
+--[[ Gracefully removes a single entry from an array then moves everything up.]]
 function tremove( t, k )
 	local tlen = #t;
 	t[k] = nil;
@@ -229,7 +226,7 @@ function tCommandArrivals.mhelp:Action( tUser )
 	return true, sRet, true, tMail[1];
 end
 
-function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have to make changes to support both sent and received messages. BROKEN
+function tCommandArrivals.dmail:Action( tUser, sMsg )
 	local sBox, nInd = sMsg:match( "^(%S-)%s-(%d+)|" );
 	nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(), ( sBox:lower() == "inbox" or sBox:lower() == "sent" ) and sBox or "inbox";
 	if sBox and nInd then
