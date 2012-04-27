@@ -26,7 +26,6 @@ tMail = {
 	};
 }
 
---{ [1] = {} --[[sent]], [2] = {} --[[Received]], [3] = "amenay" --[[UserName]] } --Eventual table structure.
 
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]

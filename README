@@ -1,2 +1,2 @@
-Private mailing system. Long term goals are to create a user maintainable inbox with a rich feature set.
-short term goal is a workable offline messaging system
+Private mailing system. Goals are to create a user maintainable inbox, threads, filesharing (potentially requiring
+client side support for file transfer), mass mailings, bulletins, and RSS feeds.
