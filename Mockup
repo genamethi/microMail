@@ -1,20 +1,18 @@
 Expected behavior:
 
+Commands in < > are required. [ ] are optional (or not needed in all cases)
+
 !inbox -- Lists names of senders along with counts.
 !sent -- Lists names of recipients along with counts.
 
-!dmail [box] <Index> -- Permanently deletes message specified. Uses current view.	
+!dmail [box] <Index> -- Permanently deletes message specified. Uses current view. (defaults to inbox)	
 
-!rmail [box] <Username> <Index> -- Displays specified message.
+!rmail [box] <Index> -- Displays specified message. (defaults to inbox)
 
 !cmail <Recipient> <Subject> -- Starts a message. Type message in PM window to mail bot then hit enter to send. Type cancel to cancel composition. (STATEFUL)
 
-!cancel [<Index*>] - Cancels cmail state if active. If Index is specified and the message hasn't been read it will remove the message from the recipients inbox. *Index is the same listed by !sent
+!cancel [Recipient] -- Cancels cmail state if active. Cancels last UNREAD message sent to recipient, otherwise. (requires option if not in composition mode)
 
-tIndex = {
+!wmail <Username> <Message> -- Same as cmail, not stateful -- sends right away -- However, can't add a subject.
 
-	Inboxes = {
-	},
-	Outboxes = {
-	},
-}
+!mhelp -- Lists commands.
