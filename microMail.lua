@@ -17,6 +17,7 @@
 		Make matches for sBox strictly match inbox or sent
 
 ]]
+
 dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ) --Gives us table.load, table.save.
 tMail = {
 	[1] = "#Mail", --Nick
