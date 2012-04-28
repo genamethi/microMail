@@ -1,5 +1,7 @@
 --[[
-	microPost
+	microPost 
+	
+	References now supported. Now I have to make dmail and cancel work properly.
 	
 	Planned Features:
 	
@@ -9,13 +11,13 @@
 		Reference,
 		Threads, (in the conversational sense)
 		CC & BCC
-		Special serialization function to support references to other table objects.
 		cancel functionality
 		mailbox storage limits.
 		attachments?
 		Make matches for sBox strictly match inbox or sent
 
 ]]
+dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ) --Gives us table.load, table.save.
 tMail = {
 	[1] = "#Mail", --Nick
 	[2] = "",  --Description
@@ -25,7 +27,6 @@ tMail = {
 		sMailFile = "Index.l-tbl";
 	};
 }
-
 
 sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
@@ -37,11 +38,7 @@ tCompose = {};
 
 do
 	--[[ Loading the mailfile, first load text into memory then execute it! tBoxes should exist after this, but we don't bother testing that. nope. ]]
-	local fMail = loadfile( sPath .. tMail.tConfig.sMailFile );
-	if fMail then
-		fMail( );
-		fMail = nil;
-	end
+	tBoxes = table.load( sPath .. tMail.tConfig.sMailFile );
 	if not tBoxes then
 		--[[ The things we do when tBoxes does not exist. ]]
 		os.execute( "mkdir " .. sPath );
@@ -52,11 +49,6 @@ end
 function OnStartup( )
 	--[[ Register bot, load serialize function, and register interactive Lua mode ]]
 	Core.RegBot( unpack( tMail ) );
-	local f = assert( loadfile( Core.GetPtokaXPath( ) .. "scripts/data/Serialize.lua" ) );
-	if f then
-		f( );
-		f = nil;
-	end
 end
 	
 function UserConnected( tUser )
@@ -117,9 +109,8 @@ function ToArrival( tUser, sData )
 end
 
 function OnExit( )
-	SaveToFile( sPath .. tMail.tConfig.sMailFile, tBoxes, "tBoxes", "w+" )
+	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile )
 end
-
 
 function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then
@@ -146,8 +137,7 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	end
 end
 
---[[ Gracefully removes a single entry from an array then moves everything up.
-]]
+--[[ Gracefully removes a single entry from an array then moves everything up.]]
 function tremove( t, k )
 	local tlen = #t;
 	t[k] = nil;
@@ -177,38 +167,6 @@ function Send( sSender, sRec, sMsg, sSubj )
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
 end
-
--- Serialize by nErBoS
-
-function SaveToFile( file, Table, tablename, mode )
-	local assert, type = assert, type;
-	local function Serialize(tTable, sTableName, sTab)
-		assert(tTable, "tTable equals nil");
-		assert(sTableName, "sTableName equals nil");
-		assert(type(tTable) == "table", "tTable must be a Table!");
-		assert(type(sTableName) == "string", "sTableName must be a string!");
-		sTab = sTab or "";
-		sTmp = ""
-		sTmp = sTmp..sTab..sTableName.." = {\n"
-		local s_format, tostring = string.format, tostring;
-		for key, value in pairs( tTable ) do
-			local sKey = ( type( key ) == "string" ) and s_format( "[%q]", key ) or s_format( "[%d]", key );
-			if(type(value) == "table") then
-				sTmp = sTmp..Serialize(value, sKey, sTab.."\t");
-			else
-				local sValue = ( type( value ) == "string") and s_format( "%q", value ) or tostring( value );
-				sTmp = sTmp..sTab.."\t"..sKey.." = "..sValue
-			end
-			sTmp = sTmp..",\n"
-		end
-		sTmp = sTmp..sTab.."}\n"
-		return sTmp
-	end
-	local handle = io.open( file, mode );
-	handle:write( Serialize( Table, tablename ) );
-	handle:close( );
-end
-
 
 tCommandArrivals = {	
 	wmail = {
@@ -244,8 +202,9 @@ tCommandArrivals = {
 		sHelp = " - Cancels compose mode. (for the moment)\n"
 	},
 }
+
 function tCommandArrivals.mhelp:Action( tUser )
-	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. ") Works in main or in PM to " .. tMail[1] .. " **-*-**\n\n";
+	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. " Works in main or in PM to " .. tMail[1] .. " **-*-**\n\n";
 	for name, obj in pairs( tCommandArrivals ) do
 		if obj.Permissions[ tUser.iProfile ] then
 			sRet = sRet .. name .. obj.sHelp;
@@ -254,13 +213,13 @@ function tCommandArrivals.mhelp:Action( tUser )
 	return true, sRet, true, tMail[1];
 end
 
-function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have to make changes to support both sent and received messages. BROKEN
+function tCommandArrivals.dmail:Action( tUser, sMsg )
 	local sBox, nInd = sMsg:match( "^(%S-)%s-(%d+)|" );
 	nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(), ( sBox:lower() == "inbox" or sBox:lower() == "sent" ) and sBox or "inbox";
 	if sBox and nInd then
 		if tBoxes[ sBox ][ sNick ] then
 			if tBoxes[ sBox ][ sNick ][ nInd ] then
-				if not tBoxes[ sBox ][ sNick ][ nInd ][6] then
+				if sBox == "inbox" and not tBoxes[ sBox ][ sNick ][ nInd ][6] then
 					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
 				end
 				tremove( tBoxes[ sBox ][ sNick ], nInd );
@@ -276,14 +235,40 @@ function tCommandArrivals.dmail:Action( tUser, sMsg ) --This is half done, have 
 	end
 end
 
+function tCommandArrivals.cancel:Action( tUser, sMsg )
+	local sRec = sMsg:match( "^(%S+)|$" );
+	local sRec_low, sNick = sRec and sRec:lower(), tUser.sNick:lower();
+	if sRec then
+		if tBoxes.inbox[ sRec_low ] then
+			local t = tBoxes.inbox[ sRec_low ];
+			for i = #t, 1, -1 do --Iterate over array in reverse to find last message.
+				if t[i][ 3 ] == sNick then --Does the from field match the cancel command user?
+					if not t[i][6] then --If so, has the recipient read the message?
+						tremove( t, i ); --if not we go ahead and remove it, buttt carefullllly.
+						return true, "You've successfully cancelled the message.\124", true, tMail[1];
+					else
+						return true, "You cannot cancel mail that's already been read\124", true, tMail[1];
+					end
+				end
+			end
+			return true, "You haven't sent " .. sRec .. " any messages.\124", true, tMail[1];
+		else
+			return true, "You haven't sent " .. sRec .. " any messages...\124", true, tMail[1];
+		end
+	else
+		return true, "Syntax error, please check mhelp for proper arguments\124", true, tMail[1];
+	end
+end
+				
+
 function tCommandArrivals.inbox:Action( tUser )
-	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 45 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 256 ) .. "\n";
+	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
 	if tBoxes.inbox[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
 			if not v[6] then
-				ret = ret .. "[" .. i .. "] \tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t" .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 256 ) .. "\n";
+				ret = ret .. "[" .. i .. "] \tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
 			else			
-				ret = ret .. "[" .. i .. "]\tType '!rmail " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t" .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 256 ) .. "\n";
+				ret = ret .. "[" .. i .. "]\tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 192 ) .. "\n";
 			end
 		end
 		return true, ret, true, tMail[ 1 ];
@@ -293,12 +278,16 @@ function tCommandArrivals.inbox:Action( tUser )
 end
 
 function tCommandArrivals.sent:Action( tUser )
-	local ret = "\n\nYour messages are as follows:\n\n # \t\tCommand" .. string.rep( " ", 45 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 256 ) .. "\n";
+	local ret = "\n\nYour messages are as follows: (Lines with * at the end have not been read by the recipient)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
 	if tBoxes.sent[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
-			ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. v[ 3 ] .. " " .. i .. "' to view this message:\t" .. v[ 3 ] .. "\t " .. v[ 2 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 256 ) .. "\n";
+			if not v[6] then
+				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
+			else	
+				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 192 ) .. "\n";
+			end
 		end
-		return true, ret, true, tMail[ 1] ;
+		return true, ret, true, tMail[ 1 ] ;
 	else
 		return true, "Sorry, you have yet to send any messages!\124", true, tMail[1];
 	end
@@ -328,13 +317,16 @@ end
 	
 
 function tCommandArrivals.rmail:Action( tUser, sMsg )
-	local sBox, sNick, nIndex = sMsg:lower():match( "^(%S+)%s(%S+)%s?(%S-)|$" );
-	if sBox and sNick then
-		if type( tonumber ( sNick ) ) == "number" and sBox ~= "sent" and sBox ~= "inbox" then
-		    sBox, sNick, nIndex = "inbox", sBox, tonumber( sNick );
+	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );
+	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower();
+	if type( tonumber ( nIndex ) ) == "number" then
+		if sBox ~= "sent" and sBox ~= "inbox" then
+			sBox, nIndex = "inbox", tonumber( nIndex );
 		else
 			nIndex = tonumber( nIndex );
 		end
+	else
+		return true, "Syntax error, please check mhelp for proper arguments.\124", true, tMail[1];
 	end
 	if tBoxes[ sBox ][ sNick ] then
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then
@@ -342,7 +334,7 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end
 			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
-			return true, "*** Error, " .. sNick .. " does not have that many messages.\124", true, tMail[1];
+			return true, "*** Error, you do not have that many messages.\124", true, tMail[1];
 		end
 	else
 		return true, "Specified box is empty.", true, tMail[1];
