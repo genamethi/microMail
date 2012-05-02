@@ -104,15 +104,16 @@ function ToArrival( tUser, sData )
 				if tCommandArrivals[ sCmd ] then 										--checks all available commands
 					if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then  
 
-						--[[Is the sum of protocol command (Everything before nInitIndex), the prefix (+1), command, a space (+1) and a endpipe (+1) greater or equal to than the entire message?
+						--[[Is the sum of protocol command including the prefix, the user command, a space (+1) and a endpipe (+1) greater or equal to than the entire message?
 						If so, that means it is a command with arguments (and isn't just a command with a space at the end.
 						Let's capture the substring, including the endpipe (this is an optimization!)* , and store it in sMsg. 
 						*Keeping the endpipe on lets us avoiding concatenating it either in C or Lua (The hubsoft does it if we don't term string with it in Lua, anyway.]]
 	
-						local sMsg;
-						if ( nInitIndex + #sCmd + 3 ) >= #sData then 
+						local sMsg = "";
+						if ( nInitIndex + #sCmd + 2 ) < #sData then 
 							sMsg = sData:sub( nInitIndex + #sCmd + 2 );
 						end
+						sim.print( #sMsg )
 						return ExecuteCommand( tUser, sMsg, sCmd, true ); 				--per usual we let ExectueCommand do the job of passing the command its arguments and passing back its returns.
 					else
 						return Core.SendPmToUser( tUser, tMail[1],  "*** Permission denied.\124" ), true;
@@ -187,35 +188,35 @@ end
 
 tCommandArrivals = {	
 	wmail = {
-		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - <Recipient> <Message> - Sends message to recipient of your choice.\n";
 	},
 	rmail = {
-		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
 	},
 	mhelp = {
-		Permissions = { [0] = true, true, true, true, true, },
+		Permissions = { [0] = true, true, true, true, true, true },
 		sHelp = " - PMs this message to you. (sort order of help is dynamic and may change at any time)\n";
 	},
 	dmail = {
-		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
 	},
 	cmail = {
-		Permissions = { [0] = true, true, true, true, true, },
-		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
 	},
 	inbox = {
-		Permissions = { [0] = true, true, true, true, true, },
+		Permissions = { [0] = true, true, true, true, true, true },
 		sHelp = " - Lists all messages in inbox.\n"
 	},
 	sent = {
-		Permissions = { [0] = true, true, true, true, true, },
+		Permissions = { [0] = true, true, true, true, true, true },
 		sHelp = " - Lists all sent messages.\n"
 	},
 	cancel = {
-		Permissions = { [0] = true, true, true, true, true, },
+		Permissions = { [0] = true, true, true, true, true, true },
 		sHelp = " - Cancels compose mode. (for the moment)\n"
 	},
 }
@@ -235,7 +236,7 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	local sBox, nInd = sMsg:match( "^(%S-)%s-(%d+)|" ); 
 	 --[[So, we convert nInd to number, make tUser.sNick in lowercase like all of our indices, and lastly we check if sBox is a match, if not it defaults to 'inbox'. 
 	Otherwise for valid arguments we lower the case for the same reason as sNick.]]
-	local nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(),( sBox and sBox:lower() == "inbox" or sBox:lower() == "sent" ) and sBox or "inbox";
+	local nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(), ( sBox and ( sBox:lower() == "inbox" or sBox:lower() == "sent" ) ) and sBox or "inbox";
 	if sBox and nInd then
 		if tBoxes[ sBox ][ sNick ] then
 			if tBoxes[ sBox ][ sNick ][ nInd ] then
