@@ -40,7 +40,7 @@ do
 	tBoxes = table.load( sPath .. tMail.tConfig.sMailFile );
 	if not tBoxes then
 		--[[ The things we do when tBoxes does not exist. ]]
-		os.execute( "mkdir " .. sPath );
+		os.execute( "mkdir \"" .. sPath .. "\"" );
 		tBoxes = { inbox = {}, sent = {} };
 	end
 end
@@ -114,7 +114,6 @@ function ToArrival( tUser, sData )
 						if ( nInitIndex + #sCmd + 2 ) < #sData then 
 							sMsg = sData:sub( nInitIndex + #sCmd + 2 );
 						end
-						sim.print( #sMsg )
 						return ExecuteCommand( tUser, sMsg, sCmd, true ); 				--per usual we let ExectueCommand do the job of passing the command its arguments and passing back its returns.
 					else
 						return Core.SendPmToUser( tUser, tMail[1],  "*** Permission denied.\124" ), true;
@@ -126,8 +125,8 @@ function ToArrival( tUser, sData )
 end
 
 function OnExit( )
-	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile )
-	sim.hook_OnExit()
+	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile );
+	sim.hook_OnExit();
 end
 
 OnError, OpDisconnected = sim.hook_OnError, sim.hook_OpDisconnected;
@@ -241,8 +240,9 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	if sBox and nInd then
 		if tBoxes[ sBox ][ sNick ] then
 			if tBoxes[ sBox ][ sNick ][ nInd ] then
-				--[[ Remember, nCounter is used to keep track of the amount of total unread messages, so we should check if the message being deleted has been read so we can have an accurate count.
-				By the way, we check inbox because sent messages just reference the inbox items of the recipient. Who cares abount unread sent? Future changes may have an interactive confirmation on dmail for deleted unread.]] 
+				--[[ nCounter is used to keep track of the amount of total unread messages, so we should check if the message being deleted has been read so we can have an accurate count.
+				By the way, we check inbox because sent messages just reference the inbox items of the recipient. Who cares abount unread sent? Future changes may have an interactive confirmation
+				on dmail for deletion of unread mail. Unplanned "feature" added is messages deleted without being read keep their reference in the sending users outbox, along with unread status.]] 
 				if sBox == "inbox" and not tBoxes[ sBox ][ sNick ][ nInd ][6] then  
 					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
 				end
