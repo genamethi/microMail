@@ -184,11 +184,11 @@ end
 tCommandArrivals = {	
 	wmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Message> - Sends message to recipient of your choice.\n";
+		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
 	},
 	rmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
+		sHelp = " <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
 	},
 	mhelp = {
 		Permissions = { [0] = true, true, true, true, true, true },
@@ -196,11 +196,11 @@ tCommandArrivals = {
 	},
 	dmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
+		sHelp = " <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
 	},
 	cmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
+		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
 	},
 	inbox = {
 		Permissions = { [0] = true, true, true, true, true, true },
@@ -212,7 +212,7 @@ tCommandArrivals = {
 	},
 	cancel = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - Cancels compose mode. (for the moment)\n"
+		sHelp = " [Recipient] - Cancels compose mode if set, otherwise removes last unread message sent to Recipient.\n"
 	},
 }
 
