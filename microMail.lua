@@ -10,6 +10,7 @@
 		CC & BCC
 		mailbox storage limits.
 		attachments?
+		Administrative tools, both automated and manual.
 
 		Notes on commenting style: Single line comments are comments on that line. Block comments are comments on code that follows.
 		
@@ -164,23 +165,23 @@ function tremove( t, k )
 	end
 end
 
-function Send( sSender, sRec, sMsg, sSubj )  																			--ugly, needs explanation.
+function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
 	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
-	if tBoxes.inbox[ sRec_low ] then
-		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };
-		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;										--Increments to keep track of unread messages regardless of array's standing.
-		if tBoxes.sent[ sSender_low ] then
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
+		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
+		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
+		if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
+			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
 		else
-			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
+			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	else
-		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };
+		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };								--Inbox item created inside constructor for new table.
 		if tBoxes.sent[ sSender_low ] then
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
 		else
-			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }
+			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--Hasn't, constructor needed.
 		end
 		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
@@ -285,7 +286,7 @@ function tCommandArrivals.cancel:Action( tUser, sMsg )
 end
 				
 
-function tCommandArrivals.inbox:Action( tUser )
+function tCommandArrivals.inbox:Action( tUser ) -- Most of this command is formatting text, with liberal use of string.rep to attempt general text alignment, same with sent, they're nearly identical.
 	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
 	if tBoxes.inbox[ tUser.sNick ] then
 		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
@@ -317,7 +318,7 @@ function tCommandArrivals.sent:Action( tUser )
 	end
 end
 
-function tCommandArrivals.wmail:Action( tUser, sMsg )
+function tCommandArrivals.wmail:Action( tUser, sMsg ) --Really just handles text, passing it to Send.
 	if sMsg then
 		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" );
 		if sRec and sMail then
@@ -341,10 +342,10 @@ end
 	
 
 function tCommandArrivals.rmail:Action( tUser, sMsg )
-	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );
-	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower();
-	if type( tonumber ( nIndex ) ) == "number" then
-		if sBox ~= "sent" and sBox ~= "inbox" then
+	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );  --Capture 0 or more nonspace characters, then there might be a space, and 0 or more digits, which are to be captured.
+	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower(); --if sBox exists we want it lowercase, again user doesn't have to worry about case.
+	if #nIndex > 0 then												--Make sure we didn't capture an empty string.
+		if sBox ~= "sent" and sBox ~= "inbox" then					--If it isn't one of the two we want to set it to the default "inbox"
 			sBox, nIndex = "inbox", tonumber( nIndex );
 		else
 			nIndex = tonumber( nIndex );
@@ -352,10 +353,10 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 	else
 		return true, "Syntax error, please check mhelp for proper arguments.\124", true, tMail[1];
 	end
-	if tBoxes[ sBox ][ sNick ] then
-		if tBoxes[ sBox ][ sNick ][ nIndex ] then
-			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];
-			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end
+	if tBoxes[ sBox ][ sNick ] then									--Does the user have an inbox?
+		if tBoxes[ sBox ][ sNick ][ nIndex ] then					--Does the message number exist?
+			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];			--Variable pointing straight to the table in question.
+			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end		--Keeps track of read messages for inbox only.
 			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
 			return true, "*** Error, you do not have that many messages.\124", true, tMail[1];
