@@ -40,7 +40,7 @@ do
 	tBoxes = table.load( sPath .. tMail.tConfig.sMailFile );
 	if not tBoxes then
 		--[[ The things we do when tBoxes does not exist. ]]
-		os.execute( "mkdir " .. sPath );
+		os.execute( "mkdir \"" .. sPath .. "\"" );
 		tBoxes = { inbox = {}, sent = {} };
 	end
 end
