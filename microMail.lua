@@ -22,6 +22,8 @@ tMail = {
 	[2] = "",  			--Description
 	[3] = "", 			--Email
 	[4] = true, 		-- Operator?
+	nInboxLimit = 100,
+	nSentLimit = 100,
 	tConfig = {
 		sMailFile = "Index.l-tbl";
 	};
@@ -167,18 +169,30 @@ end
 function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
 	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
-		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
-		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
-		if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+		if #tBoxes.inbox[ sRec_low ] >= nInboxLimit then
+			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
 		else
-			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
+			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
+			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
+			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
+				if #tBoxes.sent[ sSender_low ] >= nSentBoxLimit then
+					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+				else
+					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+				end
+			else
+				tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
+			end
+			return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 		end
-		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	else
 		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };								--Inbox item created inside constructor for new table.
 		if tBoxes.sent[ sSender_low ] then
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
+			if #tBoxes.sent[ sSender_low ] >= nSentBoxLimit then
+				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+			else
+				tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
+			end
 		else
 			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--Hasn't, constructor needed.
 		end
@@ -189,11 +203,11 @@ end
 tCommandArrivals = {	
 	wmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Message> - Sends message to recipient of your choice.\n";
+		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
 	},
 	rmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
+		sHelp = " <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
 	},
 	mhelp = {
 		Permissions = { [0] = true, true, true, true, true, true },
@@ -201,11 +215,11 @@ tCommandArrivals = {
 	},
 	dmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
+		sHelp = " <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
 	},
 	cmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
+		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n"
 	},
 	inbox = {
 		Permissions = { [0] = true, true, true, true, true, true },
@@ -217,7 +231,7 @@ tCommandArrivals = {
 	},
 	cancel = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " - Cancels compose mode. (for the moment)\n"
+		sHelp = " [Recipient] - Cancels compose mode if set, otherwise removes last unread message sent to Recipient.\n"
 	},
 }
 
