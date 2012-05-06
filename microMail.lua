@@ -16,20 +16,10 @@
 		
 ]]
 require "sim"
-dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ) --Gives us table.load, table.save.
-tMail = {
-	[1] = "#Mail", 		--Nick
-	[2] = "",  			--Description
-	[3] = "", 			--Email
-	[4] = true, 		-- Operator?
-	nInboxLimit = 100,
-	nSentLimit = 100,
-	tConfig = {
-		sMailFile = "Index.l-tbl";
-	};
-}
 
-sPath = Core.GetPtokaXPath( ) ..  "scripts/data/Mail/"
+dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ); 	--Gives us table.load, table.save.
+dofile( Core.GetPtokaXPath( ) .. "cfg/microMail.cfg" );			--Would rather have it in the cfg folder.
+
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
 --[[ Less concatenation on the fly if you have the botname ready. ]]
@@ -39,10 +29,10 @@ tCompose = {};
 
 do
 	--[[ Things we do before OnStartup (this code runs immediately.) Loading the mailfile, first load text into memory then execute it! tBoxes should exist after this, but we don't bother testing that. nope. ]]
-	tBoxes = table.load( sPath .. tMail.tConfig.sMailFile );
+	tBoxes = table.load( tMail.tConfig.sPath .. tMail.tConfig.sMailFile );
 	if not tBoxes then
 		--[[ The things we do when tBoxes does not exist. ]]
-		os.execute( "mkdir \"" .. sPath .. "\"" );
+		os.execute( "mkdir \"" .. tMail.tConfig.sPath .. "\"" );
 		tBoxes = { inbox = {}, sent = {} };
 	end
 end
@@ -51,7 +41,7 @@ end
 	
 function OnStartup( )
 	Core.RegBot( unpack( tMail ) );
-	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "generic" } );
+	sim.hook_OnStartup( { "#SIM", "PtokaX Lua interface via ToArrival", "", true }, { "amenay", "Generic" } );
 end
 	
 function UserConnected( tUser )
@@ -127,7 +117,7 @@ function ToArrival( tUser, sData )
 end
 
 function OnExit( )
-	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile );
+	table.save( tBoxes, tMail.tConfig.sPath .. tMail.tConfig.sMailFile );
 	sim.hook_OnExit();
 end
 
@@ -169,13 +159,13 @@ end
 function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
 	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
-		if #tBoxes.inbox[ sRec_low ] >= nInboxLimit then
+		if #tBoxes.inbox[ sRec_low ] >= tMail.nInboxLimit then
 			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
 		else
 			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
 			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
 			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
-				if #tBoxes.sent[ sSender_low ] >= nSentBoxLimit then
+				if #tBoxes.sent[ sSender_low ] >= tMail.nSentLimit then
 					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
 				else
 					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
@@ -188,7 +178,7 @@ function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cma
 	else
 		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };								--Inbox item created inside constructor for new table.
 		if tBoxes.sent[ sSender_low ] then
-			if #tBoxes.sent[ sSender_low ] >= nSentBoxLimit then
+			if #tBoxes.sent[ sSender_low ] >= tMail.nSentLimit then
 				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
 			else
 				tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
@@ -302,8 +292,8 @@ end
 
 function tCommandArrivals.inbox:Action( tUser ) -- Most of this command is formatting text, with liberal use of string.rep to attempt general text alignment, same with sent, they're nearly identical.
 	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
-	if tBoxes.inbox[ tUser.sNick ] then
-		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
+	if tBoxes.inbox[ tUser.sNick:lower() ] and #tBoxes.inbox[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.inbox[ tUser.sNick:lower() ] ) do
 			if not v[6] then
 				ret = ret .. "[" .. i .. "] \tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
 			else			
@@ -318,8 +308,8 @@ end
 
 function tCommandArrivals.sent:Action( tUser )
 	local ret = "\n\nYour messages are as follows: (Lines with * at the end have not been read by the recipient)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
-	if tBoxes.sent[ tUser.sNick ] then
-		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
+	if tBoxes.sent[ tUser.sNick:lower() ] and #tBoxes.sent[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.sent[ tUser.sNick:lower() ] ) do
 			if not v[6] then
 				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
 			else	
@@ -347,7 +337,7 @@ function tCommandArrivals.cmail:Action( tUser, sMsg )
 	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
 	if sRec then
 		sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)"; 								--Is subject longer than nothing, if not we make it uniform to wmail's no subject.
-		tCompose[ tUser.sNick:lower() ] = { 0, sRec, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user.
+		tCompose[ tUser.sNick ] = { 0, sRec, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user.
 		return true, "*** Composing message, please type message and press enter to send.\124", true, tMail[1];
 	else
 		return true, "Syntax error, you must specify a recipient.\124", true, tMail[1];
@@ -358,7 +348,7 @@ end
 function tCommandArrivals.rmail:Action( tUser, sMsg )
 	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );  --Capture 0 or more nonspace characters, then there might be a space, and 0 or more digits, which are to be captured.
 	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower(); --if sBox exists we want it lowercase, again user doesn't have to worry about case.
-	if #nIndex > 0 then												--Make sure we didn't capture an empty string.
+	if nIndex and #nIndex > 0 then												--Make sure we didn't capture an empty string.
 		if sBox ~= "sent" and sBox ~= "inbox" then					--If it isn't one of the two we want to set it to the default "inbox"
 			sBox, nIndex = "inbox", tonumber( nIndex );
 		else
