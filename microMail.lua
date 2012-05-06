@@ -18,7 +18,7 @@
 require "sim"
 
 dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ); 	--Gives us table.load, table.save.
-dofile( Core.GetPtokaXPath( ) .. "cfg/microMail.cfg" );			--Would rather have it in the cfg folder.
+dofile( Core.GetPtokaXPath( ) .. "scripts/microMail.cfg" );			--Would rather have it in the cfg folder.
 
 --[[ sPre creates a formatted pattern readable by string.match in order to detect when PtokaX set prefixes are used. ]]
 sPre = "^[" .. ( SetMan.GetString( 29 ):gsub( ( "%p" ), function ( p ) return "%" .. p end ) ) .. "]";
