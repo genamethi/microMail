@@ -8,20 +8,20 @@
 		Reference,
 		Threads, (in the conversational sense)
 		CC & BCC
-		mailbox storage limits.
 		attachments?
 		Administrative tools, both automated and manual.
 
 		Notes on commenting style: Single line comments are comments on that line. Block comments are comments on code that follows.
 		
 ]]
-
 dofile( Core.GetPtokaXPath( ) .. "scripts/data/chill.table.lua" ) --Gives us table.load, table.save.
 tMail = {
 	[1] = "#Mail", 		--Nick
 	[2] = "",  			--Description
 	[3] = "", 			--Email
 	[4] = true, 		-- Operator?
+	nInboxLimit = 200,
+	nSentLimit = 200,
 	tConfig = {
 		sMailFile = "Index.l-tbl";
 	};
@@ -123,7 +123,7 @@ function ToArrival( tUser, sData )
 end
 
 function OnExit( )
-	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile )
+	table.save( tBoxes, sPath .. tMail.tConfig.sMailFile );
 end
 
 	--[[Main purpose of this function is to have a uniform method of deciding whether to pass the text to the next script,
@@ -162,18 +162,30 @@ end
 function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
 	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
-		tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
-		tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
-		if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+		if #tBoxes.inbox[ sRec_low ] >= tMail.nInboxLimit then
+			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
 		else
-			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
+			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
+			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
+			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
+				if #tBoxes.sent[ sSender_low ] >= tMail.nSentLimit then
+					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+				else
+					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+				end
+			else
+				tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
+			end
+			return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 		end
-		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	else
 		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };								--Inbox item created inside constructor for new table.
 		if tBoxes.sent[ sSender_low ] then
-			tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
+			if #tBoxes.sent[ sSender_low ] >= tMail.nSentLimit then
+				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+			else
+				tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
+			end
 		else
 			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--Hasn't, constructor needed.
 		end
@@ -235,8 +247,9 @@ function tCommandArrivals.dmail:Action( tUser, sMsg )
 	if sBox and nInd then
 		if tBoxes[ sBox ][ sNick ] then
 			if tBoxes[ sBox ][ sNick ][ nInd ] then
-				--[[ Remember, nCounter is used to keep track of the amount of total unread messages, so we should check if the message being deleted has been read so we can have an accurate count.
-				By the way, we check inbox because sent messages just reference the inbox items of the recipient. Who cares abount unread sent? Future changes may have an interactive confirmation on dmail for deleted unread.]] 
+				--[[ nCounter is used to keep track of the amount of total unread messages, so we should check if the message being deleted has been read so we can have an accurate count.
+				By the way, we check inbox because sent messages just reference the inbox items of the recipient. Who cares abount unread sent? Future changes may have an interactive confirmation
+				on dmail for deletion of unread mail. Unplanned "feature" added is messages deleted without being read keep their reference in the sending users outbox, along with unread status.]] 
 				if sBox == "inbox" and not tBoxes[ sBox ][ sNick ][ nInd ][6] then  
 					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
 				end
@@ -282,8 +295,8 @@ end
 
 function tCommandArrivals.inbox:Action( tUser ) -- Most of this command is formatting text, with liberal use of string.rep to attempt general text alignment, same with sent, they're nearly identical.
 	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
-	if tBoxes.inbox[ tUser.sNick ] then
-		for i, v in ipairs( tBoxes.inbox[ tUser.sNick ] ) do
+	if tBoxes.inbox[ tUser.sNick:lower() ] and #tBoxes.inbox[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.inbox[ tUser.sNick:lower() ] ) do
 			if not v[6] then
 				ret = ret .. "[" .. i .. "] \tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
 			else			
@@ -298,8 +311,8 @@ end
 
 function tCommandArrivals.sent:Action( tUser )
 	local ret = "\n\nYour messages are as follows: (Lines with * at the end have not been read by the recipient)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
-	if tBoxes.sent[ tUser.sNick ] then
-		for i, v in ipairs( tBoxes.sent[ tUser.sNick ] ) do
+	if tBoxes.sent[ tUser.sNick:lower() ] and #tBoxes.sent[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.sent[ tUser.sNick:lower() ] ) do
 			if not v[6] then
 				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
 			else	
@@ -327,7 +340,7 @@ function tCommandArrivals.cmail:Action( tUser, sMsg )
 	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
 	if sRec then
 		sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)"; 								--Is subject longer than nothing, if not we make it uniform to wmail's no subject.
-		tCompose[ tUser.sNick:lower() ] = { 0, sRec, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user.
+		tCompose[ tUser.sNick ] = { 0, sRec, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user.
 		return true, "*** Composing message, please type message and press enter to send.\124", true, tMail[1];
 	else
 		return true, "Syntax error, you must specify a recipient.\124", true, tMail[1];
@@ -338,7 +351,7 @@ end
 function tCommandArrivals.rmail:Action( tUser, sMsg )
 	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );  --Capture 0 or more nonspace characters, then there might be a space, and 0 or more digits, which are to be captured.
 	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower(); --if sBox exists we want it lowercase, again user doesn't have to worry about case.
-	if #nIndex > 0 then												--Make sure we didn't capture an empty string.
+	if nIndex and #nIndex > 0 then												--Make sure we didn't capture an empty string.
 		if sBox ~= "sent" and sBox ~= "inbox" then					--If it isn't one of the two we want to set it to the default "inbox"
 			sBox, nIndex = "inbox", tonumber( nIndex );
 		else
