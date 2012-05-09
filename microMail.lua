@@ -363,7 +363,7 @@ function tCommandArrivals.rmail:Action( tUser, sMsg )
 	if tBoxes[ sBox ][ sNick ] then									--Does the user have an inbox?
 		if tBoxes[ sBox ][ sNick ][ nIndex ] then					--Does the message number exist?
 			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];			--Variable pointing straight to the table in question.
-			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ tUser.sNick:lower() ].nCounter = true, tBoxes.inbox[ tUser.sNick ].nCounter - 1; end		--Keeps track of read messages for inbox only.
+			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ sNick ].nCounter = true, tBoxes.inbox[ sNick ].nCounter - 1; end		--Keeps track of read messages for inbox only.
 			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
 		else
 			return true, "*** Error, you do not have that many messages.\124", true, tMail[1];
