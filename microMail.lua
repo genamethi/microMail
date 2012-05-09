@@ -268,8 +268,8 @@ end
 
 function tCommandArrivals.cancel:Action( tUser, sMsg )
 	local sRec = sMsg:match( "^(%S+)|$" );
-	local sRec_low, sNick = sRec and sRec:lower(), tUser.sNick:lower();
 	if sRec then
+		local sRec_low, sNick = sRec:lower(), tUser.sNick:lower();
 		if tBoxes.inbox[ sRec_low ] then
 			local t = tBoxes.inbox[ sRec_low ];
 			for i = #t, 1, -1 do 										--Iterate over array in reverse to find last message.
