@@ -92,7 +92,7 @@ function ToArrival( tUser, sData )
 			Sent has return values in the same format as ExecuteCommand, so we get consistant behavior with people using compose,
 			which doesn't use a command for the comitting of a message.]]
 			
-			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
+			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick ][4] );
 			tCompose[ tUser.sNick ] = nil;
 			return Core.SendPmToUser( tUser, sFrom, sRetMsg ), bRet;
 		end
@@ -273,7 +273,7 @@ function tCommandArrivals.cancel:Action( tUser, sMsg )
 		if tBoxes.inbox[ sRec_low ] then
 			local t = tBoxes.inbox[ sRec_low ];
 			for i = #t, 1, -1 do 										--Iterate over array in reverse to find last message.
-				if t[i][ 3 ] == sNick then 								--Does the from field match the cancel command user?
+				if t[i][ 3 ]:lower() == sNick then 								--Does the from field match the cancel command user?
 					if not t[i][6] then 								--If so, has the recipient read the message?
 						t.nCounter = t.nCounter - 1; 					--Keeping nCounter accurate.
 						tremove( t, i ); 								--if not we go ahead and remove it, buttt carefullllly.
