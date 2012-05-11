@@ -1,0 +1,180 @@
+tCommandArrivals = {	
+	wmail = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " <Recipient> <Message> - Sends message to recipient of your choice.\n";
+	},
+	rmail = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " [Sent or Inbox] <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.";
+	},
+	mhelp = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - PMs this message to you. (sort order of help is dynamic and may change at any time.)\n";
+	},
+	dmail = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " [Sent or Inbox] <Message Number> - Deletes message number. (as displayed when checking inbox or sent commands.)\n";
+	},
+	cmail = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " <Recipient> <Subject> - Starting compose mode. Followed by typing message and pressing enter. Can cancel with cancel command.\n";
+	},
+	inbox = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - Lists all messages in inbox.\n";
+	},
+	sent = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - Lists all sent messages.\n";
+	},
+	cancel = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " [Recipient] - Cancels compose mode if set, otherwise removes last unread message sent to Recipient.\n";
+	},
+}
+
+function tCommandArrivals.mhelp:Action( tUser )
+	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. "\n\n";
+	for name, obj in pairs( tCommandArrivals ) do
+		if obj.Permissions[ tUser.iProfile ] then
+			sRet = sRet .. "\t" .. name .. "\t" .. obj.sHelp;
+		end
+	end
+	return true, sRet .. "\n\tWorks in main or in a PM to " .. tMail[1] .. ". Commands with [Inbox or Sent] option will default to Inbox if only Message Number is specified. (Eg, !dmail 1) **-*-**\n", true, tMail[1];
+end
+
+function tCommandArrivals.dmail:Action( tUser, sMsg )
+	--[[Match with two capture, 1st is 0 or more nonspace characters, may result in nil being assigned to sBox. 2nd match is 1 or more digits, his needs to be turned into a number type.]]
+	local sBox, nInd = sMsg:match( "^(%S-)%s-(%d+)|" ); 
+	 --[[So, we convert nInd to number, make tUser.sNick in lowercase like all of our indices, and lastly we check if sBox is a match, if not it defaults to 'inbox'. 
+	Otherwise for valid arguments we lower the case for the same reason as sNick.]]
+	local nInd, sNick, sBox = tonumber( nInd ), tUser.sNick:lower(), ( sBox and ( sBox:lower() == "inbox" or sBox:lower() == "sent" ) ) and sBox or "inbox";
+	if sBox and nInd then
+		if tBoxes[ sBox ][ sNick ] then
+			if tBoxes[ sBox ][ sNick ][ nInd ] then
+				--[[ nCounter is used to keep track of the amount of total unread messages, so we should check if the message being deleted has been read so we can have an accurate count.
+				By the way, we check inbox because sent messages just reference the inbox items of the recipient. Who cares abount unread sent? Future changes may have an interactive confirmation
+				on dmail for deletion of unread mail. Unplanned "feature" added is messages deleted without being read keep their reference in the sending users outbox, along with unread status.]] 
+				if sBox == "inbox" and not tBoxes[ sBox ][ sNick ][ nInd ][6] then  
+					tBoxes[ sBox ][ sNick ].nCounter = tBoxes[ sBox ][ sNick ].nCounter - 1;
+				end
+				tremove( tBoxes[ sBox ][ sNick ], nInd ); 						--Gracefully remove the reference.
+				return true, "Successfully deleted message.", true, tMail[1];
+			else
+				return true, "Error, you don't have that many messages in this mailbox!\124", true, tMail[1];
+			end
+		else
+			return true, "You don't have any messages to delete in this mailbox!\124", true, tMail[1];
+		end
+	else
+		return true, "Improper arguments given:\n\n\t" .. sPre:sub( 4, 4 ) .. "dmail" .. self.sHelp, true, tMail[1];
+	end
+end
+
+function tCommandArrivals.cancel:Action( tUser, sMsg )
+	local sRec = sMsg:match( "^(%S+)|$" );
+	if sRec then
+		local sRec_low, sNick = sRec:lower(), tUser.sNick:lower();
+		if tBoxes.inbox[ sRec_low ] then
+			local t = tBoxes.inbox[ sRec_low ];
+			for i = #t, 1, -1 do 										--Iterate over array in reverse to find last message.
+				if t[i][ 3 ] == sNick then 								--Does the from field match the cancel command user?
+					if not t[i][6] then 								--If so, has the recipient read the message?
+						t.nCounter = t.nCounter - 1; 					--Keeping nCounter accurate.
+						tremove( t, i ); 								--if not we go ahead and remove it, buttt carefullllly.
+						return true, "You've successfully cancelled the message.\124", true, tMail[1];
+					else
+						return true, "You cannot cancel mail that's already been read\124", true, tMail[1];
+					end
+				end
+			end
+			return true, "You haven't sent " .. sRec .. " any messages.\124", true, tMail[1];
+		else
+			return true, "You haven't sent " .. sRec .. " any messages...\124", true, tMail[1];
+		end
+	else
+		return true, "Improper arguments given:\n\n\t" .. sPre:sub( 4, 4 ) .. "cancel" .. self.sHelp, true, tMail[1];
+	end
+end
+				
+
+function tCommandArrivals.inbox:Action( tUser ) -- Most of this command is formatting text, with liberal use of string.rep to attempt general text alignment, same with sent, they're nearly identical.
+	local ret = "\n\nYour messages are as follows: (Lines with * at the end are unread)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
+	if tBoxes.inbox[ tUser.sNick:lower() ] and #tBoxes.inbox[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.inbox[ tUser.sNick:lower() ] ) do
+			if not v[6] then
+				ret = ret .. "[" .. i .. "] \tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
+			else			
+				ret = ret .. "[" .. i .. "]\tType '!rmail " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t" .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 192 ) .. "\n";
+			end
+		end
+		return true, ret, true, tMail[ 1 ];
+	else
+		return true, "Sorry, you have an empty inbox!\124", true, tMail[ 1 ];
+	end
+end
+
+function tCommandArrivals.sent:Action( tUser )
+	local ret = "\n\nYour messages are as follows: (Lines with * at the end have not been read by the recipient)\n\n # \t\tCommand" .. string.rep( " ", 30 ) .. "\t To" .. string.rep( " ", 9 ) .."\tFrom " .. string.rep( " ", 9 ) .. "\t\t Date & Time	\t\t\t    Subject\n" .. string.rep( "-", 192 ) .. "\n";
+	if tBoxes.sent[ tUser.sNick:lower() ] and #tBoxes.sent[ tUser.sNick:lower() ] > 0 then
+		for i, v in ipairs( tBoxes.sent[ tUser.sNick:lower() ] ) do
+			if not v[6] then
+				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\t*\n" .. string.rep( "-", 192 ) .. "\n";
+			else	
+				ret = ret .. "[" .. i .. "]\tType '!rmail sent " .. i .. "' to view this message:\t" .. v[ 2 ] .. "\t " .. v[ 3 ] .. "\t\t" .. os.date( "%x - %X", v[ 1 ] ) .. " (-5 GMT)\t\t" .. v[ 4 ] .. "\n" .. string.rep( "-", 192 ) .. "\n";
+			end
+		end
+		return true, ret, true, tMail[ 1 ] ;
+	else
+		return true, "Sorry, you have yet to send any messages!\124", true, tMail[1];
+	end
+end
+
+function tCommandArrivals.wmail:Action( tUser, sMsg ) --Really just handles text, passing it to Send.
+	if sMsg then
+		local sRec, sMail = sMsg:match( "^(%S+)%s(.*)|" );
+		if sRec and sMail then
+			return Send( tUser.sNick, sRec, sMail );
+		else
+		return true, "Improper arguments given:\n\n\t" .. sPre:sub( 4, 4 ) .. "wmail" .. self.sHelp, true, tMail[1];
+		end
+	end
+end
+
+function tCommandArrivals.cmail:Action( tUser, sMsg )
+	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
+	if sRec then
+		sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)"; 								--Is subject longer than nothing, if not we make it uniform to wmail's no subject.
+		tCompose[ tUser.sNick ] = { 0, sRec, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user.
+		return true, "*** Composing message, please type message and press enter to send.\124", true, tMail[1];
+	else
+		return true, "Improper arguments given:\n\n\t" .. sPre:sub( 4, 4 ) .. "cmail" .. self.sHelp, true, tMail[1];
+	end
+end
+	
+
+function tCommandArrivals.rmail:Action( tUser, sMsg )
+	local sBox, nIndex = sMsg:lower():match( "^(%S-)%s?(%d-)|$" );  --Capture 0 or more nonspace characters, then there might be a space, and 0 or more digits, which are to be captured.
+	local sNick, sBox = tUser.sNick:lower(), sBox and sBox:lower(); --if sBox exists we want it lowercase, again user doesn't have to worry about case.
+	if nIndex and #nIndex > 0 then												--Make sure we didn't capture an empty string.
+		if sBox ~= "sent" and sBox ~= "inbox" then					--If it isn't one of the two we want to set it to the default "inbox"
+			sBox, nIndex = "inbox", tonumber( nIndex );
+		else
+			nIndex = tonumber( nIndex );
+		end
+	else
+		return true, "Improper arguments given:\n\n\t" .. sPre:sub( 4, 4 ) .. "rmail" .. self.sHelp, true, tMail[1];
+	end
+	if tBoxes[ sBox ][ sNick ] then									--Does the user have an inbox?
+		if tBoxes[ sBox ][ sNick ][ nIndex ] then					--Does the message number exist?
+			local tMsg = tBoxes[ sBox ][ sNick ][ nIndex ];			--Variable pointing straight to the table in question.
+			if sBox == "inbox" then tMsg[6], tBoxes.inbox[ sNick ].nCounter = true, tBoxes.inbox[ sNick ].nCounter - 1; end		--Keeps track of read messages for inbox only.
+			return true, "\nSent on " .. os.date( "%x at %X", tMsg[1] ) ..  "\nFrom: " .. tMsg[ 3 ] .. "\nSubject: " .. tMsg[4] .. "\n\n" .. tMsg[5], true, tMail[1];
+		else
+			return true, "*** Error, you do not have that many messages.\124", true, tMail[1];
+		end
+	else
+		return true, "Specified box is empty.\124", true, tMail[1];
+	end
+end
+
