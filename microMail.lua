@@ -86,7 +86,7 @@ function ToArrival( tUser, sData )
 			Sent has return values in the same format as ExecuteCommand, so we get consistant behavior with people using compose,
 			which doesn't use a command for the comitting of a message.]]
 			
-			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick:lower() ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick:lower() ][4] );
+			local bRet, sRetMsg, bInPM, sFrom = Send( tUser.sNick:lower(), tCompose[ tUser.sNick ][2], sData:sub( nInitIndex, -2 ), tCompose[ tUser.sNick ][4] );
 			tCompose[ tUser.sNick ] = nil;
 			return Core.SendPmToUser( tUser, sFrom, sRetMsg ), bRet;
 		end

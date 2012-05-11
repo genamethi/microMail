@@ -78,7 +78,7 @@ function tCommandArrivals.cancel:Action( tUser, sMsg )
 		if tBoxes.inbox[ sRec_low ] then
 			local t = tBoxes.inbox[ sRec_low ];
 			for i = #t, 1, -1 do 										--Iterate over array in reverse to find last message.
-				if t[i][ 3 ] == sNick then 								--Does the from field match the cancel command user?
+				if t[i][ 3 ]:lower() == sNick then 								--Does the from field match the cancel command user?
 					if not t[i][6] then 								--If so, has the recipient read the message?
 						t.nCounter = t.nCounter - 1; 					--Keeping nCounter accurate.
 						tremove( t, i ); 								--if not we go ahead and remove it, buttt carefullllly.
