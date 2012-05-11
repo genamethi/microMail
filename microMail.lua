@@ -200,7 +200,7 @@ tCommandArrivals = {
 	},
 	rmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " <Sender's Nick> <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
+		sHelp = " [Sent|Inbox] <Message Number> - PM's all messages sent to you from all users. Type sent before user's name to see a sent message.\n";
 	},
 	mhelp = {
 		Permissions = { [0] = true, true, true, true, true, true },
@@ -208,7 +208,7 @@ tCommandArrivals = {
 	},
 	dmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
-		sHelp = " <Recipient> <Index> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
+		sHelp = " [Sent|Inbox] <Message Number> - Deletes message number. (as displayed when checking inbox or sent commands)\n";
 	},
 	cmail = {
 		Permissions = { [0] = true, true, true, true, true, true },
