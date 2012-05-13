@@ -157,13 +157,17 @@ function tremove( t, k )
 end
 
 function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
-	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
+	local sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
+	local tRecUser = Core.GetUser( sRec );																							--Gets recieving user's object if online.
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
 		if #tBoxes.inbox[ sRec_low ] >= tMail.tConfig.nInboxLimit then
 			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
 		else
 			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
-			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;													--Increments to keep track of unread messages.
+			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;														--Increments to keep track of unread messages.
+			if tRecUser then
+				Core.SendToUser( tRecUser, sFromBot .. "You've received a message from '" .. sSender .. " type " .. sPre:sub( 4, 4 ) .. "rmail " ..  tBoxes.inbox[ sRec_low ].nCounter .. "' to view./124" );
+			end
 			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
 				if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
 					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
@@ -176,7 +180,10 @@ function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cma
 			return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 		end
 	else
-		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };								--Inbox item created inside constructor for new table.
+		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };									--Inbox item created inside constructor for new table.
+		if tRecUser then
+			Core.SendToUser( tRecUser, sFromBot .. "You've received a message from " .. sSender .. " type '" .. sPre:sub( 4, 4 ) .. "rmail 1' to view./124" );
+		end
 		if tBoxes.sent[ sSender_low ] then
 			if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
 				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
