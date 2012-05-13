@@ -170,7 +170,7 @@ function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cma
 			end
 			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
 				if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
-					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
 				else
 					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
 				end
@@ -186,7 +186,7 @@ function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cma
 		end
 		if tBoxes.sent[ sSender_low ] then
 			if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
-				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first./124", true, tMail[1];
+				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
 			else
 				tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
 			end
