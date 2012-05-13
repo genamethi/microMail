@@ -160,7 +160,7 @@ function tremove( t, k )
 end
 
 function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
-	sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
+	local sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
 		if #tBoxes.inbox[ sRec_low ] >= tMail.nInboxLimit then
 			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
