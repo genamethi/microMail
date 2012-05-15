@@ -11,6 +11,7 @@
 		attachments?
 		Administrative tools, both automated and manual.
 		Control over notifications, granularity, where, etc.
+		Fix bug with read mail not showing up properly after restart.
 		
 		Notes on commenting style: Single line comments are comments on that line. Block comments are comments on code that follows.
 		
@@ -147,7 +148,7 @@ function ExecuteCommand( tUser, sMsg, sCmd, bInPM )
 	end
 end
 
---[[ Gracefully removes a single entry from an array then moves everything up.]]
+--[[ Gracefully removes a single entry from an array then moves everything down.]]
 function tremove( t, k )
 	local tlen = #t;
 	t[k] = nil;
@@ -156,44 +157,79 @@ function tremove( t, k )
 	end
 end
 
-function Send( sSender, sRec, sMsg, sSubj )  																						--Used by cmail and wmail to save to inbox and sent arrays.
+function Send( sSender, Rec, sMsg, sSubj, bRecursive )																	--Used by cmail and wmail to save to inbox and sent arrays.																						
+	local sBroadcast, bBroadcast, sRec;		
+	if type( Rec ) == "table" then
+		if not bRecursive then
+			sBroadcast = table.concat( Rec, ", " );
+		end
+		sRec = Rec[1];
+		table.remove( Rec, 1 );
+		if #Rec > 0 then
+			bBroadcast = true;
+		else
+			bBroadcast = false;
+		end
+	end
+	sRec = sRec or Rec;
 	local sSender_low, sRec_low, sSubj = sSender:lower(), sRec:lower(), sSubj or "(No Subject)";
 	local tRecUser = Core.GetUser( sRec );																							--Gets recieving user's object if online.
 	if tBoxes.inbox[ sRec_low ] then																								--Has this user ever received a message?
 		if #tBoxes.inbox[ sRec_low ] >= tMail.tConfig.nInboxLimit then
-			return true, "The recipient has exceeded their mailbox limit./124", true, tMail[1];
+			if bBroadcast then
+				Core.SendPmToNick( sSender, tMail[1], sRec .. " has exceeded their mailbox limit.\124" );
+				return Send( sSender, Rec, sMsg, sSubj, true );
+			else
+				return true, sRec .. " has exceeded their mailbox limit./124", true, tMail[1];
+			end
 		else
-			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new table.
+			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new message table.
 			tBoxes.inbox[ sRec_low ].nCounter = tBoxes.inbox[ sRec_low ].nCounter + 1;														--Increments to keep track of unread messages.
 			if tRecUser then
-				Core.SendToUser( tRecUser, sFromBot .. "You've received a message from '" .. sSender .. " type " .. sPre:sub( 4, 4 ) .. "rmail " ..  tBoxes.inbox[ sRec_low ].nCounter .. "' to view./124" );
+				Core.SendToUser( tRecUser, sFromBot .. "You've received a message from " .. sSender .. " type '" .. sPre:sub( 4, 4 ) .. "rmail " ..  tBoxes.inbox[ sRec_low ].nCounter .. "' to view.\124" );
 			end
-			if tBoxes.sent[ sSender_low ] then																							--Has the user ever sent a message?
-				if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
-					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
+			if not bBroadcast then
+				if tBoxes.sent[ sSender_low ] then																					--Has the user ever sent a message?
+					if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
+						return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
+					elseif sBroadcast then
+						local t = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+						t[2] = sBroadcast;
+						tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = t;
+					else
+						tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+					end
 				else
-					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+					tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] };									--If they don't we create the reference inside of a new constructor.
 				end
+				return true, "You sent the following message to " .. ( sBroadcast or sRec ) .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 			else
-				tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--If they don't we create the reference inside of a new constructor.
+				return Send( sSender, Rec, sMsg, sSubj, true );
 			end
-			return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 		end
 	else
 		tBoxes.inbox[ sRec_low ] = { { os.time(), sRec, sSender, sSubj, sMsg, false }, nCounter = 1 };									--Inbox item created inside constructor for new table.
 		if tRecUser then
-			Core.SendToUser( tRecUser, sFromBot .. "You've received a message from " .. sSender .. " type '" .. sPre:sub( 4, 4 ) .. "rmail 1' to view./124" );
+			Core.SendToUser( tRecUser, sFromBot .. "You've received a message from " .. sSender .. " type '" .. sPre:sub( 4, 4 ) .. "rmail 1' to view.\124" );
 		end
-		if tBoxes.sent[ sSender_low ] then
-			if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
-				return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
+		if not bBroadcast then
+			if tBoxes.sent[ sSender_low ] then																					--Has the user ever sent a message?
+				if #tBoxes.sent[ sSender_low ] >= tMail.tConfig.nSentLimit then
+					return true, "Your 'Sent' mailbox has reached its limit. Try deleting some messages first.\124", true, tMail[1];
+				elseif sBroadcast then
+					local t = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];
+					t[2] = sBroadcast;
+					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = t;
+				else
+					tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--If they do we just create the reference as the end of the array.
+				end
 			else
-				tBoxes.sent[ sSender_low ][ #tBoxes.sent[ sSender_low ] + 1 ] = tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ];	--Has sent messages so no constructor needed.
+				tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] };									--If they don't we create the reference inside of a new constructor.
 			end
 		else
-			tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] }									--Hasn't, constructor needed.
+			return Send( sSender, Rec, sMsg, sSubj, true );
 		end
-		return true, "You sent the following message to " .. sRec .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
+		return true, "You sent the following message to " .. ( sBroadcast or sRec ) .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
 end
 
