@@ -13,7 +13,6 @@
 		
 		Todo:
 		
-		Fix bug with read mail status in inbox not showing up properly after restart.
 		Make default behavior for send on broadcast to list all recipients.
 		Address issue with parsing dollar signs.
 		
@@ -167,7 +166,6 @@ function Send( sSender, Rec, sMsg, sSubj, sBroadcast )																	--Used by
 		if not sBroadcast then
 			sBroadcast = table.concat( Rec, ", " );
 		end
-		sim.print( sBroadcast );
 		sRec = Rec[1];
 		table.remove( Rec, 1 );
 		if #Rec > 0 then
