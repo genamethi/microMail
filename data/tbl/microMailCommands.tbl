@@ -144,13 +144,14 @@ end
 function tCommandArrivals.cmail:Action( tUser, sMsg )
 	local sRec, sSubj = sMsg:match( "^(%S+)%s?(.-)|$" );
 	if sRec then
-		if sRec:match( "%$" ) then											--We check to see if there is a dollar sign delimiter, we use dollar because it can't be used in a nick.
+		if sRec:match( "&#36;" ) then											--We check to see if there is a dollar sign delimiter, we use dollar because it can't be used in a nick.
 			local nPos, tRecUsers = nil, {};
+			sMsg = sMsg:gsub( "&#36;", "$" );
 			for rec, pos in sMsg:gmatch( "([^%$%s%|]+)%$()" ) do
 				table.insert( tRecUsers, rec );
 				nPos = pos;
 			end
-			sRec, sSubj = sMsg:match( "^(%S+)%s+(.-)|$", nPos );
+			sRec = sMsg:match( "^(%S+)", nPos );
 			table.insert( tRecUsers, sRec );
 			sSubj = ( #sSubj > 0 and sSubj ) or "(No Subject)";
 			tCompose[ tUser.sNick ] = { 0, tRecUsers, tUser.sNick, sSubj, "", false }; 		--So, now we listen on ToArrival for this user, Send will handle the user array when the time comes. (optimal)

@@ -3,15 +3,19 @@
 	Author: amenay
 	
 	Planned Features:
-	
-		Mass mailing,
+	 
 		Reference,
 		Threads, (in the conversational sense)
 		CC & BCC
 		attachments?
 		Administrative tools, both automated and manual.
 		Control over notifications, granularity, where, etc.
-		Fix bug with read mail not showing up properly after restart.
+		
+		Todo:
+		
+		Fix bug with read mail status in inbox not showing up properly after restart.
+		Make default behavior for send on broadcast to list all recipients.
+		Address issue with parsing dollar signs.
 		
 		Notes on commenting style: Single line comments are comments on that line. Block comments are comments on code that follows.
 		
@@ -157,12 +161,13 @@ function tremove( t, k )
 	end
 end
 
-function Send( sSender, Rec, sMsg, sSubj, bRecursive )																	--Used by cmail and wmail to save to inbox and sent arrays.																						
-	local sBroadcast, bBroadcast, sRec;		
+function Send( sSender, Rec, sMsg, sSubj, sBroadcast )																	--Used by cmail and wmail to save to inbox and sent arrays.																						
+	local bBroadcast, sRec;		
 	if type( Rec ) == "table" then
-		if not bRecursive then
+		if not sBroadcast then
 			sBroadcast = table.concat( Rec, ", " );
 		end
+		sim.print( sBroadcast );
 		sRec = Rec[1];
 		table.remove( Rec, 1 );
 		if #Rec > 0 then
@@ -178,9 +183,9 @@ function Send( sSender, Rec, sMsg, sSubj, bRecursive )																	--Used by
 		if #tBoxes.inbox[ sRec_low ] >= tMail.tConfig.nInboxLimit then
 			if bBroadcast then
 				Core.SendPmToNick( sSender, tMail[1], sRec .. " has exceeded their mailbox limit.\124" );
-				return Send( sSender, Rec, sMsg, sSubj, true );
+				return Send( sSender, Rec, sMsg, sSubj, sBroadcast );
 			else
-				return true, sRec .. " has exceeded their mailbox limit./124", true, tMail[1];
+				return true, sRec .. " has exceeded their mailbox limit.\124", true, tMail[1];
 			end
 		else
 			tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] + 1 ] = { os.time(), sRec, sSender, sSubj, sMsg, false };				--Create a new message table.
@@ -204,7 +209,7 @@ function Send( sSender, Rec, sMsg, sSubj, bRecursive )																	--Used by
 				end
 				return true, "You sent the following message to " .. ( sBroadcast or sRec ) .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 			else
-				return Send( sSender, Rec, sMsg, sSubj, true );
+				return Send( sSender, Rec, sMsg, sSubj, sBroadcast );
 			end
 		end
 	else
@@ -227,7 +232,7 @@ function Send( sSender, Rec, sMsg, sSubj, bRecursive )																	--Used by
 				tBoxes.sent[ sSender_low ] = { tBoxes.inbox[ sRec_low ][ #tBoxes.inbox[ sRec_low ] ] };									--If they don't we create the reference inside of a new constructor.
 			end
 		else
-			return Send( sSender, Rec, sMsg, sSubj, true );
+			return Send( sSender, Rec, sMsg, sSubj, sBroadcast );
 		end
 		return true, "You sent the following message to " .. ( sBroadcast or sRec ) .. ":\n\n" .. sSubj .. "\n\n"  .. sMsg, true, tMail[1];
 	end
