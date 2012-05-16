@@ -59,7 +59,7 @@ do
                file:write( charS.."{"..lookup[v].."},"..charE )
             elseif stype == "string" then
                file:write(  charS..exportstring( v )..","..charE )
-            elseif stype == "number" then
+            elseif stype == "number" or stype == "boolean" then
                file:write(  charS..tostring( v )..","..charE )
             end
          end
