@@ -61,21 +61,25 @@ end
 OpConnected, RegConnected = UserConnected, UserConnected;
 
 function ChatArrival( tUser, sData )
-	local nInitIndex = #tUser.sNick + 4;
+	local nInitIndex = #tUser.sNick + 4
 	if sData:match( sPre, nInitIndex ) then
-		local sCmd = sData:match( "^(%w+)", nInitIndex + 1 );
+		local sCmd = sData:match( "^(%w+)", nInitIndex + 1 )
 		if sCmd then
-			sCmd = sCmd:lower( );
+			sCmd = sCmd:lower( )
 			if tCommandArrivals[ sCmd ] then
-				local sMsg;
-				if nInitIndex + #sCmd <= #sData + 1 then sMsg = sData:sub( nInitIndex + #sCmd + 2 ) end;
-				return ExecuteCommand( tUser, sMsg, sCmd );
+				if tCommandArrivals[ sCmd ].Permissions[ tUser.iProfile ] then 
+					local sMsg
+					if nInitIndex + #sCmd <= #sData + 1 then sMsg = sData:sub( nInitIndex + #sCmd + 2 ) end
+					return ExecuteCommand( tUser, sMsg, sCmd )
+				else
+					return Core.SendPmToUser( tUser, tConfig.sNick,  "*** Permission denied.\124" ), true;
+				end
 			else
-				return false;
+				return false
 			end
 		end
 	end
-end			
+end				
 
 function ToArrival( tUser, sData )
 	local sToUser = sData:match( "^(%S+)", 6 );											--Capture begins at the 6th char, ends at the first space after the 1st non-space character. Receiving user, per nmdc prot.
