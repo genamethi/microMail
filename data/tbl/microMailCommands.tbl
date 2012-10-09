@@ -31,6 +31,28 @@ tCommandArrivals = {
 		Permissions = { [0] = true, true, true, true, true, true },
 		sHelp = " [Recipient] - Cancels compose mode if set, otherwise removes last unread message sent to Recipient.\n";
 	},
+	empty = {
+		Permissions = { [0] = true, true, true, true, true, true },
+		sHelp = " - Empties inbox.\n"
+	},
+}
+
+
+function tCommandArrivals.empty:Action( tUser )
+	if tBoxes.inbox[ tUser.sNick ] then
+		local tObj = tBoxes.inbox[ tUser.sNick ];
+		local nBoxLen = #tObj;
+		for i = 1, nBoxLen do
+			if not tObj[i][6] then
+				tObj[i].nCounter - 1;			--It may be a good idea to prompt the user when deleting unread messages.
+			end
+			tObj[i] = nil;
+		end
+		return true, "Your inbox has been emptied.\124", true, tMail[1];
+	else
+		return true, "You don't have an inbox to empty. Loser.\124", true, tMail[1];
+	end
+end
 }
 
 function tCommandArrivals.mhelp:Action( tUser )
