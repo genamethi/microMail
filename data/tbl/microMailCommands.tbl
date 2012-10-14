@@ -52,7 +52,6 @@ function tCommandArrivals.empty:Action( tUser )
 		return true, "You don't have an inbox to empty. Loser.\124", true, tMail[1];
 	end
 end
-}
 
 function tCommandArrivals.mhelp:Action( tUser )
 	local sRet = "\n\n**-*-** " .. ScriptMan.GetScript().sName .."  help (use one of these prefixes: " .. SetMan.GetString( 29 ) .. "\n\n";
