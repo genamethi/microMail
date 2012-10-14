@@ -37,14 +37,13 @@ tCommandArrivals = {
 	},
 }
 
-
 function tCommandArrivals.empty:Action( tUser )
 	if tBoxes.inbox[ tUser.sNick ] then
 		local tObj = tBoxes.inbox[ tUser.sNick ];
 		local nBoxLen = #tObj;
 		for i = 1, nBoxLen do
 			if not tObj[i][6] then
-				tObj[i].nCounter - 1;			--It may be a good idea to prompt the user when deleting unread messages.
+				tObj[i].nCounter = tObj[i].nCounter - 1;			--It may be a good idea to prompt the user when deleting unread messages.
 			end
 			tObj[i] = nil;
 		end
